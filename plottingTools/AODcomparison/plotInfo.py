@@ -83,7 +83,6 @@ def getPlotInfo():
         }
     varInfo["MET"] = {
         "name"      : "MET",
-        #"accessor"  : ".energy()",
         "accessor"  : ".pt()",
         "leaf"      : "MET_pt",
         "max"       : 1500,

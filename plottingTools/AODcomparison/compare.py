@@ -4,7 +4,7 @@ import ROOT
 import DataFormats.FWLite as fwlite #import Events, Handle
 import numpy as np
 
-sys.path.append("../../include/")
+sys.path.append("../../pythonUtils/")
 import utilities as ut
 from plotInfo import getPlotInfo 
 
@@ -38,42 +38,41 @@ def buildVarInfo(plotInfo):
     plotInfo["varList"] = []     # List to store actual variables for which to plot distribution
     for var in varList0:
         if (var[-6:] != "common" and var != "defaults"): plotInfo["varList"].append(var)
-        if (var[-6:] == "common" or var == "defaults"): continue
-        else:
-            varInfoTmp = {}
+        else: continue
 
-            # If common variables are present, copy content into the plotInfo dict
-            # First xxx_common
-            varc = var.split("_")[0]+"_common"
-            if (varc in varList0):
-                for key in list(varInfo[varc].keys()): varInfoTmp[key] = varInfo[varc][key]
-            # Then xxx_xxx_common
-            varc = ut.list2str(var.split("_")[:2], "_")+"_common"
-            if (varc in varList0):
-                for key in list(varInfo[varc].keys()): varInfoTmp[key] = varInfo[varc][key]
+	varInfoTmp = {}
 
-            # Finally get the input from the variable (overide common if need be)
-            for key in list(varInfo[var].keys()): varInfoTmp[key] = varInfo[var][key]
+	# If common variables are present, copy content into the plotInfo dict
+	# First xxx_common
+	varc = var.split("_")[0]+"_common"
+	if (varc in varList0):
+	    for key in list(varInfo[varc].keys()): varInfoTmp[key] = varInfo[varc][key]
+	# Then xxx_xxx_common
+	varc = ut.list2str(var.split("_")[:2], "_")+"_common"
+	if (varc in varList0):
+	    for key in list(varInfo[varc].keys()): varInfoTmp[key] = varInfo[varc][key]
 
-            # Create array for values read from the mini and nano AOD files
-            varInfoTmp["arrayMiniAOD"] = []
-            varInfoTmp["arrayNanoAOD"] = []
-            varInfoTmp["arrayPFNanoAOD"] = []
-            
-            # Define optional parameters
-            for par in list(varInfo["defaults"].keys()):
-                if par not in list(varInfoTmp.keys()):
-                    varInfoTmp[par] = varInfo["defaults"][par]
+	# Finally get the input from the variable (overide common if need be)
+	for key in list(varInfo[var].keys()): varInfoTmp[key] = varInfo[var][key]
 
-            # Update dict
-            del varInfo[var]
-            varInfo[var] = varInfoTmp.copy()
+	# Create array for values read from the mini and nano AOD files
+	varInfoTmp["arrayMiniAOD"] = []
+	varInfoTmp["arrayNanoAOD"] = []
+	varInfoTmp["arrayPFNanoAOD"] = []
+	
+	# Define optional parameters
+	for par in list(varInfo["defaults"].keys()):
+	    if par not in list(varInfoTmp.keys()):
+		varInfoTmp[par] = varInfo["defaults"][par]
 
-            # Get handle, label for non composite variables
-            if (var[0] != "!"):
-                #print(var, plotInfo[var])
-                varInfo[var]["handle"] = fwlite.Handle(varInfo[var]["handleName"])
-                varInfo[var]["label"] = (varInfo[var]["labelName"])
+	# Update dict
+	del varInfo[var]
+	varInfo[var] = varInfoTmp.copy()
+
+	# Get handle, label for non composite variables
+	if (var[0] != "!"):
+	    varInfo[var]["handle"] = fwlite.Handle(varInfo[var]["handleName"])
+	    varInfo[var]["label"] = (varInfo[var]["labelName"])
 
     return(0)
 
@@ -89,69 +88,39 @@ def getMiniAODdata(plotInfo, fileName):
     nevt=0
     ## Loop over events
     for event in events:
+        compositeVarInfoAvail = True
         nevt+=1
         baseVar = {}
         for var in plotInfo["varList"]:
-            #print(var)
             if (var[0] != "!"):
                 event.getByLabel(varInfo[var]["label"], varInfo[var]["handle"])
                 objs = varInfo[var]["handle"].product()
-            #if var[:3] == "MET":
-            #    varInfo[var]["arrayMiniAOD"].append(eval("objs.front()"+varInfo[var]["accessor"]))
             # Jet
             if var[:3] == "Jet":
                 if (varInfo[var]["leadingIdx"]<objs.size()):
                     varValue = eval("objs["+str(varInfo[var]["leadingIdx"])+"]"+varInfo[var]["accessor"])
-                    #varArray = [ eval("objs[i]"+varInfo[var]["accessor"]) for i in range(objs.size()) ]
-                    #varValue = varArray[varInfo[var]["leadingIdx"]]
                     if varInfo[var]["plot"]: varInfo[var]["arrayMiniAOD"].append(varValue)
                     baseVar[var] = varValue
-                else: baseVar[var] = None
+                else:
+                    compositeVarInfoAvail = False
+            # MET
             elif var[:3] == "MET":
                 varValue = eval("objs.front()"+varInfo[var]["accessor"])
                 if varInfo[var]["plot"]: varInfo[var]["arrayMiniAOD"].append(varValue)
                 baseVar[var] = varValue
+            # Composite variable
             elif var[0] == "!":
-                #print baseVar
-                #print varInfo[var]["expr"].replace("#","baseVar")
-                varInfo[var]["expr"].replace("#","baseVar")
-                try:
-                    varValue = eval(varInfo[var]["expr"].replace("#","baseVar"))
-                except:
-                    pass
-                else:
-                    if varInfo[var]["plot"]: varInfo[var]["arrayMiniAOD"].append(varValue)
-                    baseVar[var] = varValue
+                if compositeVarInfoAvail:
+		    varValue = eval(varInfo[var]["expr"].replace("#","baseVar"))
+		    if varInfo[var]["plot"]: varInfo[var]["arrayMiniAOD"].append(varValue)
+		    baseVar[var] = varValue
+            # Other simple variable
+            else:
+		varValue = eval("objs["+str(varInfo[var]["leadingIdx"])+"]"+varInfo[var]["accessor"])
+		if varInfo[var]["plot"]: varInfo[var]["arrayMiniAOD"].append(varValue)
+		baseVar[var] = varValue
                 
     return(nevt)
-
-
-def getPFNanoAODdata(plotInfo, fileName):
-
-    # Create a pointer to the subdictionary plotInfo["varInfo"]
-    varInfo = plotInfo["varInfo"]
-
-    ## Open PFnanoAOD
-    f = ROOT.TFile.Open(fileName)
-    tree = f.Get("Events")
-    nEntries = tree.GetEntries()
-
-    ## Loop over events
-    for ie in range(nEntries):
-        tree.GetEntry(ie)
-        baseVar = {}
-        for var in plotInfo["varList"]:
-            if var[0] != "!":
-                varValue = tree.GetLeaf(varInfo[var]["leaf"]).GetValue(varInfo[var]["leadingIdx"])
-                if varInfo[var]["plot"]: varInfo[var]["arrayPFNanoAOD"].append(varValue)
-                baseVar[var] = varValue
-            else:
-                varValue = eval(varInfo[var]["expr"].replace("#","baseVar"))
-                if varInfo[var]["plot"]: varInfo[var]["arrayPFNanoAOD"].append(varValue)
-                baseVar[var] = varValue
-
-    f.Close()   # Close file
-    return(nEntries)
 
 
 def getNanoAODdata(plotInfo, fileName):
@@ -166,18 +135,30 @@ def getNanoAODdata(plotInfo, fileName):
 
     ## Loop over events
     for ie in range(nEntries):
+        compositeVarInfoAvail = True
         tree.GetEntry(ie)
         baseVar = {}
         for var in plotInfo["varList"]:
-            if var[0] != "!":
-                varValue = tree.GetLeaf(varInfo[var]["leaf"]).GetValue(varInfo[var]["leadingIdx"])
-                if varInfo[var]["plot"]: varInfo[var]["arrayNanoAOD"].append(varValue)
-                baseVar[var] = varValue
+            # Composite variable
+            if var[0] == "!":
+                if compositeVarInfoAvail:
+		    varValue = eval(varInfo[var]["expr"].replace("#","baseVar"))
+		    if varInfo[var]["plot"]: varInfo[var]["arrayPFNanoAOD"].append(varValue)
+		    baseVar[var] = varValue
+            # Jet
+            elif var[:3] == "Jet":
+		if varInfo[var]["leadingIdx"]<tree.GetLeaf("nJet").GetValue(0):
+		    varValue = tree.GetLeaf(varInfo[var]["leaf"]).GetValue(varInfo[var]["leadingIdx"])
+		    if varInfo[var]["plot"]: varInfo[var]["arrayPFNanoAOD"].append(varValue)
+		    baseVar[var] = varValue
+		else:
+		    compositeVarInfoAvail = False
+            # Other simple variables
             else:
-                varValue = eval(varInfo[var]["expr"].replace("#","baseVar"))
-                if varInfo[var]["plot"]: varInfo[var]["arrayNanoAOD"].append(varValue)
-                baseVar[var] = varValue
-                
+		varValue = tree.GetLeaf(varInfo[var]["leaf"]).GetValue(varInfo[var]["leadingIdx"])
+		if varInfo[var]["plot"]: varInfo[var]["arrayPFNanoAOD"].append(varValue)
+		baseVar[var] = varValue
+
     f.Close()   # Close file
     return(nEntries)
 
@@ -230,8 +211,8 @@ def makeHistograms(plotInfo):
 
             for AODformat in AOD_FORMATS:
                 if len(varInfo[var]["array"+AODformat]) > 0:
-                    varInfo[var]["hist"+AODformat] = ROOT.TH1D(varInfo[var]["name"]+AODformat, varInfo[var]["name"]+AODformat,
-                                                                NBINS, minBin, maxBin)
+                    hTitle = varInfo[var]["name"]+AODformat
+                    varInfo[var]["hist"+AODformat] = ROOT.TH1D(hTitle, hTitle, NBINS, minBin, maxBin)
                     varInfo[var]["hist"+AODformat].SetTitle(varInfo[var]["name"])
                     for x in varInfo[var]["array"+AODformat]: varInfo[var]["hist"+AODformat].Fill(x)
                 else:
@@ -283,7 +264,7 @@ if __name__ == "__main__":
 
     if x["MiniAODvsPFNanoAOD"] or x["NanoAODvsPFNanoAOD"]:
         print("Reading %s" %fileNamePFNanoAOD)
-        nEvt = getPFNanoAODdata(plotInfo, fileNamePFNanoAOD)
+        nEvt = getNanoAODdata(plotInfo, fileNamePFNanoAOD)
         print("%d events read" %nEvt)
 
     if x["MiniAODvsNanoAOD"] or x["NanoAODvsPFNanoAOD"]:
