@@ -34,7 +34,7 @@ def buildVarInfo(plotInfo):
     # Create a pointer to the subdictionary plotInfo["varInfo"]
     varInfo = plotInfo["varInfo"]
 
-    varList0 = list(plotInfo["varInfo"].keys())
+    varList0 = plotInfo["varInfo"].keys()
     plotInfo["varList"] = []     # List to store actual variables for which to plot distribution
     for var in varList0:
         if (var[-6:] != "common" and var != "defaults"): plotInfo["varList"].append(var)
@@ -46,14 +46,14 @@ def buildVarInfo(plotInfo):
 	# First xxx_common
 	varc = var.split("_")[0]+"_common"
 	if (varc in varList0):
-	    for key in list(varInfo[varc].keys()): varInfoTmp[key] = varInfo[varc][key]
+	    for key in varInfo[varc].keys(): varInfoTmp[key] = varInfo[varc][key]
 	# Then xxx_xxx_common
 	varc = ut.list2str(var.split("_")[:2], "_")+"_common"
 	if (varc in varList0):
-	    for key in list(varInfo[varc].keys()): varInfoTmp[key] = varInfo[varc][key]
+	    for key in varInfo[varc].keys(): varInfoTmp[key] = varInfo[varc][key]
 
 	# Finally get the input from the variable (overide common if need be)
-	for key in list(varInfo[var].keys()): varInfoTmp[key] = varInfo[var][key]
+	for key in varInfo[var].keys(): varInfoTmp[key] = varInfo[var][key]
 
 	# Create array for values read from the mini and nano AOD files
 	varInfoTmp["arrayMiniAOD"] = []
@@ -61,8 +61,8 @@ def buildVarInfo(plotInfo):
 	varInfoTmp["arrayPFNanoAOD"] = []
 	
 	# Define optional parameters
-	for par in list(varInfo["defaults"].keys()):
-	    if par not in list(varInfoTmp.keys()):
+	for par in varInfo["defaults"].keys():
+	    if par not in varInfoTmp.keys():
 		varInfoTmp[par] = varInfo["defaults"][par]
 
 	# Update dict
@@ -74,7 +74,7 @@ def buildVarInfo(plotInfo):
 	    varInfo[var]["handle"] = fwlite.Handle(varInfo[var]["handleName"])
 	    varInfo[var]["label"] = (varInfo[var]["labelName"])
 
-    return(0)
+    return 0
 
 
 def getMiniAODdata(plotInfo, fileName):
@@ -96,7 +96,7 @@ def getMiniAODdata(plotInfo, fileName):
                 event.getByLabel(varInfo[var]["label"], varInfo[var]["handle"])
                 objs = varInfo[var]["handle"].product()
             # Jet
-            if var[:3] == "Jet":
+            if var[:3] == "Jet" or var[:6] == "FatJet":
                 if (varInfo[var]["leadingIdx"]<objs.size()):
                     varValue = eval("objs["+str(varInfo[var]["leadingIdx"])+"]"+varInfo[var]["accessor"])
                     if varInfo[var]["plot"]: varInfo[var]["arrayMiniAOD"].append(varValue)
@@ -120,7 +120,7 @@ def getMiniAODdata(plotInfo, fileName):
 		if varInfo[var]["plot"]: varInfo[var]["arrayMiniAOD"].append(varValue)
 		baseVar[var] = varValue
                 
-    return(nevt)
+    return nevt
 
 
 def getNanoAODdata(plotInfo, fileName):
@@ -146,7 +146,7 @@ def getNanoAODdata(plotInfo, fileName):
 		    if varInfo[var]["plot"]: varInfo[var]["arrayPFNanoAOD"].append(varValue)
 		    baseVar[var] = varValue
             # Jet
-            elif var[:3] == "Jet":
+            elif var[:3] == "Jet" or var[:6] == "FatJet":
 		if varInfo[var]["leadingIdx"]<tree.GetLeaf("nJet").GetValue(0):
 		    varValue = tree.GetLeaf(varInfo[var]["leaf"]).GetValue(varInfo[var]["leadingIdx"])
 		    if varInfo[var]["plot"]: varInfo[var]["arrayPFNanoAOD"].append(varValue)
@@ -160,7 +160,7 @@ def getNanoAODdata(plotInfo, fileName):
 		baseVar[var] = varValue
 
     f.Close()   # Close file
-    return(nEntries)
+    return nEntries
 
 
 def getBinning(varInfo, method="minMaxHistograms"):
@@ -194,7 +194,7 @@ def getBinning(varInfo, method="minMaxHistograms"):
 
     else:
         print("WARNING: Unknown binning method for var, using min max of histograms" %varInfo["name"])
-        return(getMinBin(varInfo), getMaxBin(varInfo))
+        return getMinBin(varInfo), getMaxBin(varInfo)
 
 
 
@@ -227,7 +227,7 @@ def makePlots(plotInfo, AOD1, AOD2):
     for var in plotInfo["varPlotList"]:
 
         canvas = ROOT.TCanvas(varInfo[var]["name"], varInfo[var]["name"])
-        if "logscale" in list(varInfo[var].keys()) and varInfo[var]["logscale"]: canvas.SetLogy()
+        if "logscale" in varInfo[var].keys() and varInfo[var]["logscale"]: canvas.SetLogy()
 
         varInfo[var]["hist"+AOD1].SetLineColor(2)
         varInfo[var]["hist"+AOD2].SetLineColor(3)
@@ -277,7 +277,7 @@ if __name__ == "__main__":
     makeHistograms(plotInfo)
   
     print("\nMaking plots...")
-    for comparison in list(plotInfo["comparisons"].keys()):
+    for comparison in plotInfo["comparisons"].keys():
         if plotInfo["comparisons"][comparison]:
             [ AOD1, AOD2 ] = comparison.split("vs")
             makePlots(plotInfo, AOD1, AOD2)
