@@ -70,7 +70,7 @@ def getPlotInfo():
 
     ## Define some defaults
     varInfo["defaults"] = {
-        "plot"      : True,
+        "plot"      : False,
         "logscale"  : True,
         "min"       : 0,
     }
@@ -127,6 +127,7 @@ def getPlotInfo():
     #    "plot"      : False
     }
 
+
     # Jet phi
     varInfo["Jet_phi_common"] = {
         "accessor"  : ".phi()",
@@ -167,6 +168,80 @@ def getPlotInfo():
         "max"       : 1000,
     #    "plot"      : False
     }
+
+
+    # FatJet
+    varInfo["FatJet_common"] = {
+        "handleName": "vector<pat::Jet>",
+        "labelName" : "slimmedJetsAK8"
+    }
+
+    # Jet mass
+    varInfo["FatJet_mass_common"] = {
+        "accessor"  : ".mass()",
+        "leaf"      : "FatJet_mass"
+    }
+    varInfo["FatJet_mass_0"] = {
+        "name"      : "Leading fatjet mass",
+        "leadingIdx": 0,
+        "max"       : 300,
+        "plot"      : True
+    }
+    varInfo["FatJet_mass_1"] = {
+        "name"      : "Subleading fatjet mass",
+        "leadingIdx": 1,
+        "max"       : 300,
+    #    "plot"      : False
+    }
+    varInfo["FatJet_mass_2"] = {
+        "name"      : "Subsubleading fatjet mass",
+        "leadingIdx": 2,
+        "max"       : 150,
+    #    "plot"      : False
+    }
+
+
+    # FatJet phi
+    varInfo["FatJet_phi_common"] = {
+        "accessor"  : ".phi()",
+        "leaf"      : "FatJet_phi",
+        "min"       : -3.15,
+        "max"       : +3.15,
+        "plot"      : False
+    }
+    varInfo["FatJet_phi_0"] = {
+        "name"      : "Leading fatjet phi",
+        "leadingIdx": 0
+    }
+    varInfo["FatJet_phi_1"] = {
+        "name"      : "Subleading fatjet phi",
+        "leadingIdx": 1
+    }
+
+    # FatJet pt
+    varInfo["FatJet_pt_common"] = {
+        "accessor"  : ".pt()",
+        "leaf"      : "FatJet_pt"
+    }
+    varInfo["FatJet_pt_0"] = {
+        "name"      : "Leading fatjet pt",
+        "leadingIdx": 0,
+        "max"       : 2000,
+    #    "plot"      : False
+    }
+    varInfo["FatJet_pt_1"] = {
+        "name"      : "Subleading fatjet pt",
+        "leadingIdx": 1,
+        "max"       : 2000,
+    #    "plot"      : False
+    }
+    varInfo["FatJet_pt_2"] = {
+        "name"      : "subsubleading fajet pt",
+        "leadingIdx": 2,
+        "max"       : 1000,
+    #    "plot"      : False
+    }
+
 
     # Combined variables
     varInfo["!deltaPhi_common"] = {
