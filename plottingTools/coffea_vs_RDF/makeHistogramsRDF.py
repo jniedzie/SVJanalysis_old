@@ -88,7 +88,7 @@ def main():
                 h = bookHistogram(df, variable, ranges[variable], weight)
                 hists[variable].Add(h.GetValue())
                 
-    firstPass = False
+        firstPass = False
 
     # Normalise histograms
     for variable in variables:
