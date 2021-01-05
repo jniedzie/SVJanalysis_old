@@ -76,7 +76,7 @@ def main():
             df = df.Define(obj, definition)
 
         # Increment the number of event processed
-        nGenEvts += dfRun.Mean("genEventSumw_").GetValue()
+        nGenEvts += dfRun.Sum("genEventSumw_").GetValue()
         # nGenEvts += df.Sum("genWeight").GetValue()
 
         # Book histograms
