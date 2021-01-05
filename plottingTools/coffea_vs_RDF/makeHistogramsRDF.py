@@ -64,7 +64,7 @@ def main():
 
     # Loop through datasets and produce histograms of variables
     firstPass = True
-    for fn in filesNumber[1:]:
+    for fn in filesNumber[0:]:
 
         fileName = samplesPath + str(fn) + ".root"
 
