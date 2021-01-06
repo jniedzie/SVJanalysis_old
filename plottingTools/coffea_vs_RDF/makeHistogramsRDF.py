@@ -64,7 +64,7 @@ def main():
 
     # Loop through datasets and produce histograms of variables
     firstPass = True
-    for fn in filesNumber[1:]:
+    for fn in filesNumber:
 
         fileName = samplesPath + str(fn) + ".root"
 
@@ -76,7 +76,7 @@ def main():
             df = df.Define(obj, definition)
 
         # Increment the number of event processed
-        nGenEvts += dfRun.Mean("genEventSumw_").GetValue()
+        nGenEvts += dfRun.Sum("genEventSumw_").GetValue()
         # nGenEvts += df.Sum("genWeight").GetValue()
 
         # Book histograms
@@ -84,11 +84,11 @@ def main():
             weight = "genWeight"
             if firstPass:
                 hists[variable] = bookHistogram(df, variable, ranges[variable], weight)
-                firstPass = False
             else:
                 h = bookHistogram(df, variable, ranges[variable], weight)
                 hists[variable].Add(h.GetValue())
-
+                
+        firstPass = False
 
     # Normalise histograms
     for variable in variables:
