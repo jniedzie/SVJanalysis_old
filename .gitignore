@@ -1,3 +1,8 @@
+plottingTools/coffea_vs_RDF/*.root
+plottingTools/coffea_vs_RDF/makeHistogramsRDF
+plottingTools/coffea_vs_RDF/xMakeHistogramsRDF
+plottingTools/coffea_vs_RDF/coffeaenv/
+
 # Prerequisites
 *.d
 
