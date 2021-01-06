@@ -77,7 +77,7 @@ int main()
   
   // Get mean of event weight sums (why?)
   auto dfRun = RDataFrame("Runs", fileName);
-  int nGenEvts = dfRun.Mean("genEventSumw_").GetValue();
+  int nGenEvts = dfRun.Sum("genEventSumw_").GetValue();
   
   // Book and fill histograms
   for(auto &[variable, range] : ranges){
