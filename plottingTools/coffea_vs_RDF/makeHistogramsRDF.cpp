@@ -10,6 +10,9 @@ using namespace std;
 using namespace ROOT;
 using namespace ROOT::RDF;
 
+typedef RInterface<ROOT::Detail::RDF::RLoopManager, void> RDataFrameExt;
+typedef tuple<int, double, double> HistRange;
+
 const double LUMI = 21071.0+38654.0;
 const double XSection = 0.01891;
 
@@ -17,7 +20,7 @@ const double XSection = 0.01891;
 const string fileName = "../../../data/t_channel/NANOAODJMAR/merged/1.root";
 
 // Define the binning of the different variables to histogram
-const map<string, tuple<int, double, double>> ranges = {
+const map<string, HistRange> ranges = {
   //  "nGoodFatJet"          : {20 , 0 , 20  },
   {"GoodFatJet_pt", {200, 0 , 2000}},
 };
@@ -29,7 +32,7 @@ const map<string, string> objDefinitions = {
   {"GoodFatJet_pt",   "FatJet_pt[GoodFatJet]"},
 };
 
-
+/// These is only needed for time measurements
 template<class T> double duration(T t0,T t1)
 {
   auto elapsed_secs = t1-t0;
@@ -38,19 +41,18 @@ template<class T> double duration(T t0,T t1)
   return secs.count();
 }
 
+/// These is only needed for time measurements
 inline chrono::time_point<std::chrono::steady_clock> now()
 {
   return chrono::steady_clock::now();
 }
 
 // Book a histogram for a specific variable
-RResultPtr<TH1D> bookHistogram(RInterface<ROOT::Detail::RDF::RLoopManager, void> df,
-                               string variable, tuple<int, double, double> range_, string weight)
+RResultPtr<TH1D> bookHistogram(RDataFrameExt df, string variable, HistRange range, string weight)
 {
-  auto histModel = TH1DModel(variable.c_str(), variable.c_str(), get<0>(range_), get<1>(range_), get<2>(range_));
+  auto histModel = TH1DModel(variable.c_str(), variable.c_str(), get<0>(range), get<1>(range), get<2>(range));
   return df.Histo1D(histModel, variable, weight);
 }
-
 
 // Write a histogram with a given name to the output ROOT file
 void writeHistogram(RResultPtr<TH1D> h, string name)
@@ -59,30 +61,16 @@ void writeHistogram(RResultPtr<TH1D> h, string name)
   h->Write();
 }
 
-
-//void makeHistogramsRDF()
 int main()
 {
   auto tstart = now();
-  ROOT::EnableImplicitMT(8);
+//  ROOT::EnableImplicitMT(8); // This makes it slower
   
   // Load dataset
   auto df = RDataFrame("Events", fileName);
-  
-  string firstKey = objDefinitions.begin()->first;
-  string firstValue = objDefinitions.begin()->second;
-  
-  auto dfAfterCuts = df.Define(firstKey, firstValue);
-  bool first = true;
-  
-  for(auto &[obj, definition] : objDefinitions){
-    if(first){
-      first = false;
-      continue;
-    }
-    dfAfterCuts = dfAfterCuts.Define(obj, definition);
-  }
-  
+  RDataFrameExt dfAfterCuts(df);
+  for(auto &[obj, definition] : objDefinitions) dfAfterCuts = dfAfterCuts.Define(obj, definition);
+
   // Create output file
   TFile *tfile = new TFile("./histograms_cpp.root", "RECREATE");
   tfile->cd();
