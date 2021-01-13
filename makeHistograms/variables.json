@@ -1,0 +1,96 @@
+{
+"variables": [
+    "nGoodFatJet",
+    "GoodFatJet_pt",
+    "GoodFatJet_eta",
+    "GoodFatJet_mass",
+    "GoodFatJet_msoftdrop",
+    "GoodFatJet_tau1",
+    "GoodFatJet_tau2",
+    "GoodFatJet_tau3",
+    "GoodFatJet_tau21",
+    "GoodFatJet_tau32",
+
+    "J1_pt",
+    "J1_eta",
+    "J1_phi",
+    "J1_mass",
+    "J1_msoftdrop",
+    "J1_tau1",
+    "J1_tau2",
+    "J1_tau3",
+    "J1_tau21",
+    "J1_tau32",
+
+    "J2_pt",
+    "J2_eta",
+    "J2_phi",
+    "J2_mass",
+    "J2_msoftdrop",
+    "J2_tau1",
+    "J2_tau2",
+    "J2_tau3",
+    "J2_tau21",
+    "J2_tau32",
+
+    "dR_J1J2",
+    "dEta_J1J2",
+    "J1J2_mass",
+    "J1J2_pt",
+
+    "dPhi_J1MET",
+    "dPhi_J2MET",
+    "dPhi_J1J2MET",
+    "dPhiMin_JMET",
+    "dPhiMinUpTo2_JMET",
+    "dPhiMinUpTo4_JMET",
+    "dPhiMin2_JMET",
+
+    "MET_pt",
+    "RawMET_pt",
+    "PuppiMET_pt",
+    "GenMET_pt",
+
+    "HT_AK8",
+    "ST_AK8",
+    "MT_AK8",
+    "METrHT_AK8",
+    "METrST_AK8",
+
+
+    "nGoodJet",
+    "GoodJet_pt",
+    "GoodJet_eta",
+    "GoodJet_mass",
+
+    "j1_pt",
+    "j1_eta",
+    "j1_phi",
+    "j1_mass",
+
+    "j2_pt",
+    "j2_eta",
+    "j2_phi",
+    "j2_mass",
+
+    "dR_j1j2",
+    "dEta_j1j2",
+    "j1j2_mass",
+    "j1j2_pt",
+
+    "dPhi_j1MET",
+    "dPhi_j2MET",
+    "dPhi_j1j2MET",
+    "dPhiMin_jMET",
+    "dPhiMinUpTo2_jMET",
+    "dPhiMinUpTo4_jMET",
+    "dPhiMin2_jMET",
+
+    "HT_AK4",
+    "ST_AK4",
+    "MT_AK4",
+    "METrHT_AK4",
+    "METrST_AK4"
+
+    ]
+}

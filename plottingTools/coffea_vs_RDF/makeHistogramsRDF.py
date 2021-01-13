@@ -14,7 +14,9 @@ XSection = 0.01891
 
 # Used to define root files to read
 samplesPath = "/eos/home-f/fleble/SVJ/data/production/102X/tchannel/mMed-3000_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8/NANOAODJMAR/"
-filesNumber = [ i for i in range(1,101) ]
+fileSet = [
+    samplesPath + "merged.root"
+    ]
 
 
 # Define the binning of the different variables to histogram
@@ -47,7 +49,7 @@ def writeHistogram(h, name):
 def main():
 
     # Set up multi-threading capability of ROOT
-    ROOT.ROOT.EnableImplicitMT(8)
+    #ROOT.ROOT.EnableImplicitMT(8)  # It seems it does not work!
 
     # Variables to histogram
     variables = ranges.keys()
@@ -59,14 +61,14 @@ def main():
     nGenEvts = 0
 
     # Dict to store histograms
-    hists = {}
+    hists = []
 
 
     # Loop through datasets and produce histograms of variables
-    firstPass = True
-    for fn in filesNumber:
+    nFiles = len(fileSet)
+    for iFile, fileName in enumerate(fileSet):
 
-        fileName = samplesPath + str(fn) + ".root"
+        hists.append({})
 
         # Load dataset
         df = ROOT.ROOT.RDataFrame("Events", fileName)
@@ -82,22 +84,18 @@ def main():
         # Book histograms
         for variable in variables:
             weight = "genWeight"
-            if firstPass:
-                hists[variable] = bookHistogram(df, variable, ranges[variable], weight)
-            else:
-                h = bookHistogram(df, variable, ranges[variable], weight)
-                hists[variable].Add(h.GetValue())
-                
-        firstPass = False
+            hists[iFile][variable] = bookHistogram(df, variable, ranges[variable], weight)
 
-    # Normalise histograms
-    for variable in variables:
-        hists[variable].Scale( XSection*LUMI/nGenEvts )
 
-    # Write histograms to output file
-    for variable in variables:
-        tfile.cd()
-        writeHistogram(hists[variable], "{}".format(variable))
+    # Normalise histograms and write them to file
+    tfile.cd()
+    for variable in hists[0].keys():
+        hist = hists[0][variable]
+        for iFile in range(1, nFiles):
+            hist.Add(hists[iFile][variable].GetValue())
+        hist.Scale( XSection*LUMI/nGenEvts )
+        writeHistogram(hist, variable)
+
 
     tfile.Close()
 
