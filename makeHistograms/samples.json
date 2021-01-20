@@ -1,7 +1,27 @@
 {
+"tchannel_mMed-1000_mDark-20_rinv-0p3": {
+    "fileset": ["/eos/home-f/fleble/SVJ/data/production/102X/tchannel/mMed-1000_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8/NANOAODJMAR/merged.root"],
+    "XSection": 1.247
+    },
+
+"tchannel_mMed-3000_mDark-20_rinv-0p1": {
+    "fileset": ["/eos/home-f/fleble/SVJ/data/production/102X/tchannel/mMed-3000_mDark-20_rinv-0.1_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8/NANOAODJMAR/merged.root"],
+    "XSection": 0.01891
+    },
+
 "tchannel_mMed-3000_mDark-20_rinv-0p3": {
     "fileset": ["/eos/home-f/fleble/SVJ/data/production/102X/tchannel/mMed-3000_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8/NANOAODJMAR/merged.root"],
     "XSection": 0.01891
+    },
+
+"tchannel_mMed-3000_mDark-20_rinv-0p7": {
+    "fileset": ["/eos/home-f/fleble/SVJ/data/production/102X/tchannel/mMed-3000_mDark-20_rinv-0.7_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8/NANOAODJMAR/merged.root"],
+    "XSection": 0.01891
+    },
+
+"tchannel_mMed-6000_mDark-20_rinv-0p3": {
+    "fileset": ["/eos/home-f/fleble/SVJ/data/production/102X/tchannel/mMed-6000_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8/NANOAODJMAR/merged.root"],
+    "XSection": 0.001269
     },
 
 
