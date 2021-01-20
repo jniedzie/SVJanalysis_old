@@ -1,4 +1,6 @@
 {
+"Comment": "List of variables for which the histograms must be saved to the output ROOT file",
+
 "variables": [
     "nGoodFatJet",
     "GoodFatJet_pt",
@@ -54,6 +56,7 @@
     "HT_AK8",
     "ST_AK8",
     "MT_AK8",
+    "RT_AK8",
     "METrHT_AK8",
     "METrST_AK8",
 
@@ -89,6 +92,7 @@
     "HT_AK4",
     "ST_AK4",
     "MT_AK4",
+    "RT_AK4",
     "METrHT_AK4",
     "METrST_AK4"
 
