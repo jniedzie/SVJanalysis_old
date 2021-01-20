@@ -1,0 +1,140 @@
+{
+"dataframes": [
+    {
+    "description": "Whole dataset with good object definition",
+    "idx": 0,
+    "filter": ["", ""],
+    "defines": [
+        ["GoodFatJet"           , "abs(FatJet_eta) < 2.4 && FatJet_pt > 200"],
+        ["nGoodFatJet"          , "Sum(GoodFatJet)"                         ],
+        ["GoodFatJet_pt"        , "FatJet_pt[GoodFatJet]"                   ],
+        ["GoodFatJet_phi"       , "FatJet_phi[GoodFatJet]"                  ],
+        ["GoodFatJet_eta"       , "FatJet_eta[GoodFatJet]"                  ],
+        ["GoodFatJet_mass"      , "FatJet_mass[GoodFatJet]"                 ],
+        ["GoodFatJet_msoftdrop" , "FatJet_msoftdrop[GoodFatJet]"            ],
+        ["GoodFatJet_tau1"      , "FatJet_tau1[GoodFatJet]"                 ],
+        ["GoodFatJet_tau2"      , "FatJet_tau2[GoodFatJet]"                 ],
+        ["GoodFatJet_tau3"      , "FatJet_tau3[GoodFatJet]"                 ],
+        ["GoodFatJet_tau21"     , "GoodFatJet_tau2/GoodFatJet_tau1"         ],
+        ["GoodFatJet_tau32"     , "GoodFatJet_tau3/GoodFatJet_tau2"         ],
+        ["HT_AK8"               , "Sum(GoodFatJet_pt)"                      ],
+        ["ST_AK8"               , "HT_AK8 + MET_pt"                         ],
+        ["METrHT_AK8"           , "MET_pt / HT_AK8"                         ],
+        ["METrST_AK8"           , "MET_pt / ST_AK8"                         ],
+        ["GoodJet"              , "abs(Jet_eta) < 2.4 && Jet_pt > 30"       ],
+        ["nGoodJet"             , "Sum(GoodJet)"                            ],
+        ["GoodJet_pt"           , "Jet_pt[GoodJet]"                         ],
+        ["GoodJet_phi"          , "Jet_phi[GoodJet]"                        ],
+        ["GoodJet_eta"          , "Jet_eta[GoodJet]"                        ],
+        ["GoodJet_mass"         , "Jet_mass[GoodJet]"                       ],
+        ["HT_AK4"               , "Sum(GoodJet_pt)"                         ],
+        ["ST_AK4"               , "HT_AK4 + MET_pt"                         ],
+        ["METrHT_AK4"           , "MET_pt / HT_AK4"                         ],
+        ["METrST_AK4"           , "MET_pt / ST_AK4"                         ]
+        ]
+    },
+    
+    {
+    "description": ">= 1 good FatJets",
+    "idx": 1,
+    "idxBase": 0,
+    "filter": ["nGoodFatJet >= 1", "Greater than 1 good FatJets"],
+    "defines": [
+        ["J1_pt"             , "GoodFatJet_pt[0]"                                                       ],
+        ["J1_eta"            , "GoodFatJet_eta[0]"                                                      ],
+        ["J1_phi"            , "GoodFatJet_phi[0]"                                                      ],
+        ["J1_mass"           , "GoodFatJet_mass[0]"                                                     ],
+        ["J1_msoftdrop"      , "GoodFatJet_msoftdrop[0]"                                                ],
+        ["J1_tau1"           , "GoodFatJet_tau1[0]"                                                     ],
+        ["J1_tau2"           , "GoodFatJet_tau2[0]"                                                     ],
+        ["J1_tau3"           , "GoodFatJet_tau3[0]"                                                     ],
+        ["J1_tau21"          , "GoodFatJet_tau21[0]"                                                    ],
+        ["J1_tau32"          , "GoodFatJet_tau32[0]"                                                    ],
+        ["dPhi_J1MET"        , "abs(ROOT::VecOps::DeltaPhi(GoodFatJet_phi[0], MET_phi))"                ],
+        ["dPhiMin_JMET"      , "ROOT::VecOps::Min(abs(ROOT::VecOps::DeltaPhi(GoodFatJet_phi, MET_phi)))"],
+        ["dPhiMinUpTo2_JMET" , "DeltaPhiMinN(2, GoodFatJet_phi, MET_phi)"                               ],
+        ["dPhiMinUpTo4_JMET" , "DeltaPhiMinN(4, GoodFatJet_phi, MET_phi)"                               ]
+        ]
+    },
+
+    {
+    "description": ">= 1 good Jets",
+    "idx": 2,
+    "idxBase": 0,
+    "filter": ["nGoodJet >= 1", "Greater than 1 good Jets"],
+    "defines": [
+        ["j1_pt"             , "GoodJet_pt[0]"                                                        ],
+        ["j1_eta"            , "GoodJet_eta[0]"                                                       ],
+        ["j1_phi"            , "GoodJet_phi[0]"                                                       ],
+        ["j1_mass"           , "GoodJet_mass[0]"                                                      ],
+        ["dPhi_j1MET"        , "abs(ROOT::VecOps::DeltaPhi(GoodJet_phi[0], MET_phi))"                 ],
+        ["dPhiMin_jMET"      , "ROOT::VecOps::Min(abs(ROOT::VecOps::DeltaPhi(GoodJet_phi, MET_phi)))" ],
+        ["dPhiMinUpTo2_jMET" , "DeltaPhiMinN(2, GoodJet_phi, MET_phi)"                                ],
+        ["dPhiMinUpTo4_jMET" , "DeltaPhiMinN(4, GoodJet_phi, MET_phi)"                                ]
+        ]
+    },
+
+    {
+    "description": ">= 2 good FatJets",
+    "idx": 3,
+    "idxBase": 1,
+    "filter": ["nGoodFatJet >= 2", "Greater than 2 good FatJets"],
+    "defines": [
+        ["J2_pt"         , "GoodFatJet_pt[1]"         ],
+        ["J2_eta"        , "GoodFatJet_eta[1]"        ],
+        ["J2_phi"        , "GoodFatJet_phi[1]"        ],
+        ["J2_mass"       , "GoodFatJet_mass[1]"       ],
+        ["J2_msoftdrop"  , "GoodFatJet_msoftdrop[1]"  ],
+        ["J2_tau1"       , "GoodFatJet_tau1[1]"       ],
+        ["J2_tau2"       , "GoodFatJet_tau2[1]"       ],
+        ["J2_tau3"       , "GoodFatJet_tau3[1]"       ],
+        ["J2_tau21"      , "GoodFatJet_tau21[1]"      ],
+        ["J2_tau32"      , "GoodFatJet_tau32[1]"      ],
+        ["dR_J1J2"       , "ROOT::VecOps::DeltaR(J1_eta, J2_eta, J1_phi, J2_phi)"         ],
+        ["dPhiMin2_JMET" , "DeltaPhiMinN(2, GoodFatJet_phi, MET_phi)"                     ],
+        ["dEta_J1J2"     , "std::abs(GoodFatJet_eta[0] - GoodFatJet_eta[1])"              ],
+        ["dPhi_J2MET"    , "std::abs(ROOT::VecOps::DeltaPhi(GoodFatJet_phi[1], MET_phi))" ],
+        ["PtEtaPhiM_J1"  , "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<float> > (GoodFatJet_pt[0], GoodFatJet_eta[0], GoodFatJet_phi[0], GoodFatJet_mass[0])" ],
+        ["PtEtaPhiM_J2"  , "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<float> > (GoodFatJet_pt[1], GoodFatJet_eta[1], GoodFatJet_phi[1], GoodFatJet_mass[1])" ],
+        ["PtEtaPhiM_J1J2", "PtEtaPhiM_J1 + PtEtaPhiM_J2" ],
+        ["J1J2_mass"     , "PtEtaPhiM_J1J2.M()"                                   ],
+        ["J1J2_mass2"    , "std::pow(J1J2_mass, 2)"                               ],
+        ["J1J2_pt"       , "PtEtaPhiM_J1J2.Pt()"                                  ],
+        ["J1J2_pt2"      , "std::pow(J1J2_pt, 2)"                                 ],
+        ["J1J2_phi"      , "PtEtaPhiM_J1J2.Phi()"                                 ],
+        ["dPhi_J1J2MET"  , "std::abs(ROOT::VecOps::DeltaPhi(J1J2_phi, MET_phi))"  ],
+        ["MT_AK8"        , "std::sqrt( J1J2_mass2  +  2 * ( std::sqrt(J1J2_mass2 + J1J2_pt2) * MET_pt - MET_pt * J1J2_pt * std::cos(dPhi_J1J2MET) ) )" ],
+        ["RT_AK8"        , "MET_pt / MT_AK8" ]
+        ]
+    },
+
+    {
+    "description": ">= 2 good Jets",
+    "idx": 4,
+    "idxBase": 2,
+    "filter": ["nGoodJet >= 2", "Greater than 2 good Jets"],
+    "defines": [
+        ["j2_pt"         , "GoodJet_pt[1]"   ],
+        ["j2_eta"        , "GoodJet_eta[1]"  ],
+        ["j2_phi"        , "GoodJet_phi[1]"  ],
+        ["j2_mass"       , "GoodJet_mass[1]" ],
+        ["dR_j1j2"       , "ROOT::VecOps::DeltaR(j1_eta, j2_eta, j1_phi, j2_phi)"      ],
+        ["dPhiMin2_jMET" , "DeltaPhiMinN(2, GoodJet_phi, MET_phi)"                     ],
+        ["dEta_j1j2"     , "std::abs(GoodJet_eta[0] - GoodJet_eta[1])"                 ],
+        ["dPhi_j2MET"    , "std::abs(ROOT::VecOps::DeltaPhi(GoodJet_phi[1], MET_phi))" ],
+        ["PtEtaPhiM_j1"  , "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<float> > (GoodJet_pt[0], GoodJet_eta[0], GoodJet_phi[0], GoodJet_mass[0])" ],
+        ["PtEtaPhiM_j2"  , "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<float> > (GoodJet_pt[1], GoodJet_eta[1], GoodJet_phi[1], GoodJet_mass[1])" ],
+        ["PtEtaPhiM_j1j2", "PtEtaPhiM_j1 + PtEtaPhiM_j2" ],
+        ["j1j2_mass"     , "PtEtaPhiM_j1j2.M()"                                  ],
+        ["j1j2_mass2"    , "std::pow(j1j2_mass, 2)"                              ],
+        ["j1j2_pt"       , "PtEtaPhiM_j1j2.Pt()"                                 ],
+        ["j1j2_pt2"      , "std::pow(j1j2_pt, 2)"                                ],
+        ["j1j2_phi"      , "PtEtaPhiM_j1j2.Phi()"                                ],
+        ["dPhi_j1j2MET"  , "std::abs(ROOT::VecOps::DeltaPhi(j1j2_phi, MET_phi))" ],
+
+        ["MT_AK4"        , "std::sqrt( j1j2_mass2  +  2 * ( std::sqrt(j1j2_mass2 + j1j2_pt2) * MET_pt - MET_pt * j1j2_pt * std::cos(dPhi_j1j2MET) ) )" ],
+        ["RT_AK4"        , "MET_pt / MT_AK4" ]
+        ]
+    }
+]
+}
