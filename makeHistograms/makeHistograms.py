@@ -42,7 +42,7 @@ def writeHistogram(h, name):
 
 ## Main function making histograms
 
-def main(MODE, variables, binning, sample, outputDirectory, LUMI):
+def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER_BATCH):
 
     # Set up multi-threading capability of ROOT
     ROOT.ROOT.EnableImplicitMT()
@@ -64,20 +64,29 @@ def main(MODE, variables, binning, sample, outputDirectory, LUMI):
     # for too many events at once
     batches = [[]]
     nEvts = 0
-    for file_ in sample["fileset"]:
+    nFilesTot = len(sample["fileset"])
+    for ifile, file_ in enumerate(sample["fileset"]):
 
         # If file is on eos, add global redirector
         if file_.startswith("/store/mc/") or file_.startswith("/store/user/"):
             file_ = "root://cms-xrd-global.cern.ch/" + file_
 
-        if nEvts < 2e6:
+        f = ROOT.TFile.Open(file_, "READ")
+        t = f.Get("Events")
+        nEvtsFile = t.GetEntries()
+        if nEvts+nEvtsFile < N_EVTS_MAX_PER_BATCH:
             batches[-1].append(file_)
-            f = ROOT.TFile.Open(file_, "READ")
-            t = f.Get("Events")
-            nEvts += t.GetEntries()
+            nEvts += nEvtsFile
         else:
-            nEvts = 0
-            batches.append([file_])
+            if len(batches[-1]) > 0:
+                nEvts = nEvtsFile
+                batches.append([file_])
+            else:
+                print("WARNING: More than %d events in file %s" %(N_EVTS_MAX_PER_BATCH, file_))
+                print("         Creating batch with 1 file, exceeding maximum number of events per batch.")
+                nEvts = nEvtsFile
+                batches[-1].append(file_)
+                if ifile+1 != nFilesTot: batches.append([])
 
     print("%d batches of files made" %(len(batches)))
 
@@ -268,14 +277,20 @@ if __name__ == "__main__":
         default=59725.0,   # 21071.0+38654.0
         help="Total luminosity for normalization of the histograms"
         )
+    parser.add_argument(
+        "-nevts", "--nEvtsMaxPerBatch",
+        nargs="?",
+        default=5e6,
+        help="Maximum number of events per batches. RDT efficient features break down for too\
+              many events at once. Batches of files with limited number of events are made."
+        )
 
 
     args = parser.parse_args()
     
 
     # All samples description
-    with open(args.samplesDescription, 'r') as f:
-        samplesDescription = json.load(f)
+    samplesDescription = utl.makeJsonData(args.samplesDescription)
 
     # Variables to histogram
     with open(args.variables, 'r') as f:
@@ -301,7 +316,7 @@ if __name__ == "__main__":
         if "name" not in sample.keys():
             sample["name"] = sampleName
         # and make histograms
-        main(args.mode, variables, binning, sample, args.outputDirectory, args.lumi)
+        main(args.mode, variables, binning, sample, args.outputDirectory, float(args.lumi), float(args.nEvtsMaxPerBatch))
 
 
     elapsed = time.time() - tstart
