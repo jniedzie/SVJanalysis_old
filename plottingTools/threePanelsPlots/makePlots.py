@@ -6,7 +6,7 @@ import json
 from array import array
 
 sys.path.append("../common/")
-import histograms as hst
+import histogramUtils as hst
 
 
 ROOT.gROOT.SetBatch(True)
