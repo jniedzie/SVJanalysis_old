@@ -1,35 +1,40 @@
 {
-"noregex": {
-    "j1j2_mass"           :  [500  ,  0   , 5000 ],
-    "J1J2_mass"           :  [500  ,  0   , 5000 ],
-    "j1j2_pt"             :  [500  ,  0   , 5000 ],
-    "J1J2_pt"             :  [500  ,  0   , 5000 ]
-    },
 
-"regex": {
-    "nGood(Fat)?Jet"      :  [20   ,  0   , 20   ],
-    "^dPhi"               :  [100  ,  0   , 4    ],
-    "^(?!.*MET).*_pt$"      :  [200  ,  0   , 2000 ],
-    "_eta$"               :  [200  , -6   , 6    ],
-    "_phi$"               :  [200  , -4   , 4    ],
-    "_msoftdrop$"         :  [40   ,  0   , 200  ],
-    "_mass$"              :  [40   ,  0   , 200  ],
-    "_tau1$"              :  [40   ,  0   , 0.8  ],
-    "_tau2$"              :  [40   ,  0   , 0.65 ],
-    "_tau3$"              :  [40   ,  0   , 0.35 ],
-    "_tau21$"             :  [40   ,  0   , 1.3  ],
-    "_tau32$"             :  [40   ,  0   , 1.3  ],
+"Comment": "Define the binning of the different variable either by giving the entire variable name - noregex dict - or by writing a regex for it - regex dict. Regexes can be used to efficiently define the binning of several variables at once. If a variable is in the noregex dict, the regexes will not be examined. Binning is defined by 3 numbers: number of bins, min, max.",
 
-    "dR_[jJ]1[jJ]2"       :  [100  , 0   , 10    ],
-    "dEta_[jJ]1[jJ]2"     :  [200  , -6   , 6    ],
+"binning": {
+    "noregex": {
+	"j1j2_mass"           :  [500  ,  0   , 5000 ],
+	"J1J2_mass"           :  [500  ,  0   , 5000 ],
+	"j1j2_pt"             :  [500  ,  0   , 5000 ],
+	"J1J2_pt"             :  [500  ,  0   , 5000 ]
+	},
 
-    "(Gen|Puppi|Raw)?MET_":  [20   ,  0   , 2000 ],
-    "^HT_AK[48]"          :  [500  ,  0   , 5000 ],
-    "^ST_AK[48]"          :  [500  ,  0   , 5000 ],
-    "^MT_AK[48]"          :  [500  ,  0   , 5000 ],
-    "METrHT_AK[48]"       :  [100  ,  0   , 20   ],
-    "METrST_AK[48]"       :  [100  ,  0   , 1    ]
+    "regex": {
+	"nGood(Fat)?Jet"      :  [20   ,  0   , 20   ],
+	"^dPhi"               :  [100  ,  0   , 4    ],
+	"^(?!.*MET).*_pt$"    :  [200  ,  0   , 2000 ],
+	"_eta$"               :  [200  , -6   , 6    ],
+	"_phi$"               :  [200  , -4   , 4    ],
+	"_msoftdrop$"         :  [40   ,  0   , 200  ],
+	"_mass$"              :  [40   ,  0   , 200  ],
+	"_tau1$"              :  [40   ,  0   , 0.8  ],
+	"_tau2$"              :  [40   ,  0   , 0.65 ],
+	"_tau3$"              :  [40   ,  0   , 0.35 ],
+	"_tau21$"             :  [40   ,  0   , 1.3  ],
+	"_tau32$"             :  [40   ,  0   , 1.3  ],
 
+	"dR_[jJ]1[jJ]2"       :  [100  ,  0   , 10   ],
+	"dEta_[jJ]1[jJ]2"     :  [200  , -6   , 6    ],
+
+	"(Gen|Puppi|Raw)?MET_":  [20   ,  0   , 2000 ],
+	"^HT_AK[48]"          :  [500  ,  0   , 5000 ],
+	"^ST_AK[48]"          :  [500  ,  0   , 5000 ],
+	"^MT_AK[48]"          :  [500  ,  0   , 5000 ],
+	"^RT_AK[48]"          :  [500  ,  0   , 5000 ],
+	"METrHT_AK[48]"       :  [100  ,  0   , 20   ],
+	"METrST_AK[48]"       :  [100  ,  0   , 1    ]
+
+	}
     }
-
 }

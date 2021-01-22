@@ -1,0 +1,84 @@
+{
+    "nGoodFatJet"         : "Number of Fat Jets",
+    "GoodFatJet_pt"       : "Fat Jet p_{T} [GeV]",
+    "GoodFatJet_mass"     : "Fat Jet mass [GeV]",
+    "GoodFatJet_msoftdrop": "Fat Jet SD mass [GeV]",
+    "GoodFatJet_tau1"     : "Fat Jet #tau_{1}",
+    "GoodFatJet_tau2"     : "Fat Jet #tau_{2}",
+    "GoodFatJet_tau3"     : "Fat Jet #tau_{3}",
+    "GoodFatJet_tau21"    : "Fat Jet #tau_{21}",
+    "GoodFatJet_tau32"    : "Fat Jet #tau_{32}",
+
+    "J1_pt"            : "Fat Jet 1 p_{T} [GeV]",
+    "J1_mass"          : "Fat Jet 1 mass [GeV]",
+    "J1_msoftdrop"     : "Fat Jet 1 SD mass [GeV]",
+    "J1_tau1"          : "Fat Jet 1 #tau_{1}",
+    "J1_tau2"          : "Fat Jet 1 #tau_{2}",
+    "J1_tau3"          : "Fat Jet 1 #tau_{3}",
+    "J1_tau21"         : "Fat Jet 1 #tau_{21}",
+    "J1_tau32"         : "Fat Jet 1 #tau_{32}",
+
+    "J2_pt"            : "Fat Jet 2 p_{T} [GeV]",
+    "J2_mass"          : "Fat Jet 2 mass [GeV]",
+    "J2_msoftdrop"     : "Fat Jet 2 SD mass [GeV]",
+    "J2_tau1"          : "Fat Jet 2 #tau_{1}",  
+    "J2_tau2"          : "Fat Jet 2 #tau_{2}",  
+    "J2_tau3"          : "Fat Jet 2 #tau_{3}",  
+    "J2_tau21"         : "Fat Jet 2 #tau_{21}", 
+    "J2_tau32"         : "Fat Jet 2 #tau_{32}", 
+
+    "dR_J1J2"          : "#Delta R(J1, J2)",
+    "dEta_J1J2"        : "#Delta #eta (J1, J2)",
+    "J1J2_mass"        : "J1J2 mass [GeV]",
+    "J1J2_pt"          : "J1J2 p_{T} [GeV]",
+
+    "dPhi_J1MET"       : "#Delta #Phi (J1, MET) [rad]",
+    "dPhi_J2MET"       : "#Delta #Phi (J2, MET) [rad]",
+    "dPhi_J1J2MET"     : "#Delta #Phi (J1J2, MET) [rad]",
+    "dPhiMin_JMET"     : "#Delta #Phi min (J, MET) [rad]",
+    "dPhiMinUpTo2_JMET": "#Delta #Phi min_{up2} (J, MET) [rad]",
+    "dPhiMinUpTo4_JMET": "#Delta #Phi min_{up4} (J, MET) [rad]",
+    "dPhiMin2_JMET"    : "#Delta #Phi min_{2} (J, MET) [rad]",
+
+    "MET_pt"           : "MET [GeV]",
+    "RawMET_pt"        : "Raw MET [GeV]",
+    "PuppiMET_pt"      : "Puppi MET [GeV]",
+    "GenMET_pt"        : "Gen MET [GeV]",
+
+    "HT_AK8"           : "HT (AK8 jets) [GeV]",
+    "ST_AK8"           : "ST (AK8 jets) [GeV]",
+    "MT_AK8"           : "MT (AK8 jets) [GeV]",
+    "METrHT_AK8"       : "MET/HT (AK8 jets)",
+    "METrST_AK8"       : "MET/ST (AK8 jets)",
+
+
+    "nGoodJet"         : "Number of AK4 jets",
+    "GoodJet_pt"       : "AK4 jets p_{T} [GeV]",
+    "GoodJet_mass"     : "AK4 jets mass [GeV]",
+
+    "j1_pt"            : "AK4 jet 1 p_{T} [GeV]",
+    "j1_mass"          : "AK4 jet 1 mass [GeV]",
+
+    "j2_pt"            : "AK4 jet 2 p_{T} [GeV]",
+    "j2_mass"          : "AK4 jet 2 mass [GeV]",
+
+    "dR_j1j2"          : "#Delta R(j1, j2)",
+    "dEta_j1j2"        : "#Delta #eta (j1, j2)",
+    "j1j2_mass"        : "j1j2 mass [GeV]",
+    "j1j2_pt"          : "j1j2 p_{T} [GeV]",
+
+    "dPhi_j1MET"       : "#Delta #Phi (j1, MET) [rad]",
+    "dPhi_j2MET"       : "#Delta #Phi (j2, MET) [rad]",
+    "dPhi_j1j2MET"     : "#Delta #Phi (j1j2, MET) [rad]",
+    "dPhiMin_jMET"     : "#Delta #Phi min (j, MET) [rad]",
+    "dPhiMinUpTo2_jMET": "#Delta #Phi min_{up2} (j, MET) [rad]",
+    "dPhiMinUpTo4_jMET": "#Delta #Phi min_{up4} (j, MET) [rad]",
+    "dPhiMin2_jMET"    : "#Delta #Phi min_{2} (j, MET) [rad]",
+
+    "HT_AK4"           : "HT (AK4 jets) [GeV]",
+    "ST_AK4"           : "ST (AK4 jets) [GeV]",
+    "MT_AK4"           : "MT (AK4 jets) [GeV]",
+    "METrHT_AK4"       : "MET/HT (AK4 jets) [GeV]",
+    "METrST_AK4"       : "MET/ST (AK4 jets) [GeV]"
+
+}

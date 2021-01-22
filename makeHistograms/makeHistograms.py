@@ -1,6 +1,6 @@
 import sys
 import json
-from collections import OrderedDict
+import argparse
 import time
 import numpy as np
 
@@ -27,15 +27,6 @@ Float_t DeltaPhiMinN(int NjetsMax, ROOT::VecOps::RVec<Float_t>& phi, Float_t& ph
 """)
 
 
-## Constants
-HIST_OUTPUT_PATH = "/eos/user/f/fleble/SVJ/data/histograms/"
-LUMI = 21071.0+38654.0
-
-# Restrict histogram making to a couple of samples
-# [] for all samples in sample.json file
-# ["xxx", "yyy"] for xxx and yyy samples
-LIST_OF_SAMPLES = ["tchannel_mMed-3000_mDark-20_rinv-0p3"]
-
 
 ## Useful functions
 
@@ -51,320 +42,195 @@ def writeHistogram(h, name):
 
 ## Main function making histograms
 
-def main(samples, variables, binning):
+def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER_BATCH):
 
     # Set up multi-threading capability of ROOT
     ROOT.ROOT.EnableImplicitMT()
 
-    # Loop through datasets and produce histograms of variables
-    for sample in samples.keys():
+    # Get sample name and cross-section
+    sampleName = sample["name"]
+    XSection = sample["XSection"]
 
-        process = samples[sample]
-        XSection = process["XSection"]
+    # Create/update output file
+    ROOTfileName = outputDirectory + sampleName + ".root"
+    print("\nWill %s ROOT file %s." %(MODE.lower(), ROOTfileName))
+    tfile = ROOT.TFile(ROOTfileName, MODE)
 
-        # Create output file
-        ROOTfileName = HIST_OUTPUT_PATH + sample + ".root"
-        print("\nCreating ROOT file %s" %ROOTfileName)
-        tfile = ROOT.TFile(ROOTfileName, "RECREATE")
+    # Initialise event counter
+    nGenEvts = 0
 
-        # Initialise event counter
-        nGenEvts = 0
+    # Make batches of files with a total of less than X million events
+    # Need to do that because RDataFrame efficient features seems to break down
+    # for too many events at once
+    batches = [[]]
+    nEvts = 0
+    nFilesTot = len(sample["fileset"])
+    for ifile, file_ in enumerate(sample["fileset"]):
 
-        # Make batches of files with a total of less than X million events
-        # Need to do that because RDataFrame efficient features seems to break down
-        # for too many events at once
-        batches = [[]]
-        nEvts = 0
-        for file_ in process["fileset"]:
+        # If file is on eos, add global redirector
+        if file_.startswith("/store/mc/") or file_.startswith("/store/user/"):
+            file_ = "root://cms-xrd-global.cern.ch/" + file_
+
+        f = ROOT.TFile.Open(file_, "READ")
+        t = f.Get("Events")
+        nEvtsFile = t.GetEntries()
+        if nEvts+nEvtsFile < N_EVTS_MAX_PER_BATCH:
+            batches[-1].append(file_)
+            nEvts += nEvtsFile
+        else:
+            if len(batches[-1]) > 0:
+                nEvts = nEvtsFile
+                batches.append([file_])
+            else:
+                print("WARNING: More than %d events in file %s" %(N_EVTS_MAX_PER_BATCH, file_))
+                print("         Creating batch with 1 file, exceeding maximum number of events per batch.")
+                nEvts = nEvtsFile
+                batches[-1].append(file_)
+                if ifile+1 != nFilesTot: batches.append([])
+
+    print("%d batches of files made" %(len(batches)))
+
+    # Object to store histograms from the different batches of file sets
+    hists = []
+
+
+    # Loop over all batches of files
+    for fileset in batches:
+        print("")
+
+        # Object to store histograms from the different files in this batch
+        histsBatch = []
+
+        # Loop over all files
+        nFiles = len(fileset)
+        for iFile, fileName in enumerate(fileset):
+
+            tstart = time.time()
+            print("Reading file %d out of %d" %(iFile+1, nFiles))
+
+            histsBatch.append({})
 
             # If file is on eos, add global redirector
-            if file_.startswith("/store/mc/") or file_.startswith("/store/user/"):
-                file_ = "root://cms-xrd-global.cern.ch/" + file_
+            if fileName.startswith("/store/mc/") or fileName.startswith("/store/user/"):
+                fileName = "root://cms-xrd-global.cern.ch/" + fileName
 
-            if nEvts < 2e6:
-                batches[-1].append(file_)
-                f = ROOT.TFile.Open(file_, "READ")
-                t = f.Get("Events")
-                nEvts += t.GetEntries()
-            else:
-                nEvts = 0
-                batches.append([file_])
-
-        print("%d batches of files made" %(len(batches)))
-
-        # Object to store histograms from the different batches of file sets
-        hists = []
+            # Lists to store pointers to different RDataFrames (different filters)
+            # and to store variables that have been defined
+            dfList = []
+            definedVars = []
 
 
-        # Loop over all batches of files
-        for fileset in batches:
-            print("")
+            ## Make RDataFrames with all requested variables
+            for idf, dataframe in enumerate(dataframes):
 
-            # Object to store partial histograms from the different files in this batch
-            histsBatch = []
+                # Check ordering of dataframes read
+                dfIdx = dataframe["idx"]
+                if dfIdx != idf:
+                    print("ERROR: Mismatch between dataframe index and the number of dataframes defined so far.")
+                    break
 
-            # Loop over all files
-            nFiles = len(fileset)
-            for iFile, fileName in enumerate(fileset):
-
-                tstart = time.time()
-                print("Reading file %d out of %d" %(iFile+1, nFiles))
-
-                histsBatch.append({})
-
-                # If file is on eos, add global redirector
-                if fileName.startswith("/store/mc/") or fileName.startswith("/store/user/"):
-                    fileName = "root://cms-xrd-global.cern.ch/" + fileName
-
-                # Lists to store pointers to different RDataFrames (different filters)
-                # and to Ordered dictionary storing the definition of new quantities
-                dfList = []
-                objDefinitionsList = []
-
-                # Increment the number of event processed
-                dfRun = ROOT.ROOT.RDataFrame("Runs", fileName)
-                if "genEventSumw" in dfRun.GetColumnNames():
-                    nGenEvts += dfRun.Sum("genEventSumw").GetValue()
+                # Define dataframe
+                # Either read ROOT file (1st dataframe)
+                if dfIdx == 0:
+                    dfList.append(ROOT.ROOT.RDataFrame("Events", fileName))
+                    # Increment the number of events processed
+                    nGenEvts += dfList[0].Sum("genWeight").GetValue()  
+                # Or build it from filtering an already defined dataframe
                 else:
-                    nGenEvts += dfRun.Sum("genEventSumw_").GetValue()
+                    idxBase = dataframe["idxBase"]
+                    f1 = dataframe["filter"][0]
+                    f2 = dataframe["filter"][1]
+                    dfList.append(dfList[idxBase].Filter(f1 , f2))
 
-                # In case one wants to recompute the sum of gen weights, do the following
-                # instead of the previous block of instructions
-                #nGenEvts += df.Sum("genWeight").GetValue()  
+                # Define variables in this dataframe
+                definedVars.append([])
+                for define in dataframe["defines"]:
+                    variable = define[0]
+                    definition = define[1]
+                    dfList[dfIdx] = dfList[dfIdx].Define(variable, definition)
+                    definedVars[dfIdx].append(variable)
 
+           
+            ## Book histograms
+            for variable in variables:
 
-                ## Now we define the variables needed to fill in the histograms
+                # Check if binning is defined for this variable
+                if variable not in binning["noregex"]:
+                    regexes = list(binning["regex"].keys())
+                    indices = utl.inregex(variable, regexes)
+                    if len(indices) == 0:
+                        print("Binning of %s is not defined. Skipping." %variable)
+                        continue
+                    elif len(indices) > 1:
+                        print("%s matches several regexes. Binning cannot be defined. Skipping." %variable)
+                        continue
+                    else: 
+                        binning_ = binning["regex"][regexes[indices[0]]]
+                else:
+                    binning_ = binning["noregex"][variable]
 
-                ## RDF without any cut
-                dfIdx = 0
-
-                # Load dataset
-                dfList.append(ROOT.ROOT.RDataFrame("Events", fileName))
-
-                # Define objects and variables
-                objDefinitionsList.append(OrderedDict())
-                o = objDefinitionsList[dfIdx]
-                o["GoodFatJet"           ] = "abs(FatJet_eta) < 2.4 && FatJet_pt > 200"
-                o["nGoodFatJet"          ] = "Sum(GoodFatJet)"
-                o["GoodFatJet_pt"        ] = "FatJet_pt[GoodFatJet]"
-                o["GoodFatJet_phi"       ] = "FatJet_phi[GoodFatJet]"
-                o["GoodFatJet_eta"       ] = "FatJet_eta[GoodFatJet]"
-                o["GoodFatJet_mass"      ] = "FatJet_mass[GoodFatJet]"
-                o["GoodFatJet_msoftdrop" ] = "FatJet_msoftdrop[GoodFatJet]"
-                o["GoodFatJet_tau1"      ] = "FatJet_tau1[GoodFatJet]"
-                o["GoodFatJet_tau2"      ] = "FatJet_tau2[GoodFatJet]"
-                o["GoodFatJet_tau3"      ] = "FatJet_tau3[GoodFatJet]"
-                o["GoodFatJet_tau21"     ] = "GoodFatJet_tau2/GoodFatJet_tau1"
-                o["GoodFatJet_tau32"     ] = "GoodFatJet_tau3/GoodFatJet_tau2"
-                o["HT_AK8"               ] = "Sum(GoodFatJet_pt)"
-                o["ST_AK8"               ] = "HT_AK8 + MET_pt"
-                o["METrHT_AK8"           ] = "MET_pt / HT_AK8"
-                o["METrST_AK8"           ] = "MET_pt / ST_AK8"
-
-                o["GoodJet"              ] = "abs(Jet_eta) < 2.4 && Jet_pt > 30"
-                o["nGoodJet"             ] = "Sum(GoodJet)"
-                o["GoodJet_pt"           ] = "Jet_pt[GoodJet]"
-                o["GoodJet_phi"          ] = "Jet_phi[GoodJet]"
-                o["GoodJet_eta"          ] = "Jet_eta[GoodJet]"
-                o["GoodJet_mass"         ] = "Jet_mass[GoodJet]"
-                o["HT_AK4"               ] = "Sum(GoodJet_pt)"
-                o["ST_AK4"               ] = "HT_AK4 + MET_pt"
-                o["METrHT_AK4"           ] = "MET_pt / HT_AK4"
-                o["METrST_AK4"           ] = "MET_pt / ST_AK4"
-
-
-                for obj, definition in objDefinitionsList[dfIdx].items():
-                    dfList[dfIdx] = dfList[dfIdx].Define(obj, definition)
-
-
-                ## RDF with at least 1 good FatJet
-                dfIdx = 1
-                dfList.append(dfList[0].Filter("nGoodFatJet >= 1", "Greater than 1 good FatJets"))
-                 
-                # Define objects and variables
-                objDefinitionsList.append(OrderedDict())
-                o = objDefinitionsList[dfIdx]
-                o["J1_pt"                ] = "GoodFatJet_pt[0]"
-                o["J1_eta"               ] = "GoodFatJet_eta[0]"
-                o["J1_phi"               ] = "GoodFatJet_phi[0]"
-                o["J1_mass"              ] = "GoodFatJet_mass[0]"
-                o["J1_msoftdrop"         ] = "GoodFatJet_msoftdrop[0]"
-                o["J1_tau1"              ] = "GoodFatJet_tau1[0]"
-                o["J1_tau2"              ] = "GoodFatJet_tau2[0]"
-                o["J1_tau3"              ] = "GoodFatJet_tau3[0]"
-                o["J1_tau21"             ] = "GoodFatJet_tau21[0]"
-                o["J1_tau32"             ] = "GoodFatJet_tau32[0]"
-                o["dPhi_J1MET"           ] = "abs(ROOT::VecOps::DeltaPhi(GoodFatJet_phi[0], MET_phi))"
-                o["dPhiMin_JMET"         ] = "ROOT::VecOps::Min(abs(ROOT::VecOps::DeltaPhi(GoodFatJet_phi, MET_phi)))"
-                o["dPhiMinUpTo2_JMET"    ] = "DeltaPhiMinN(2, GoodFatJet_phi, MET_phi)"
-                o["dPhiMinUpTo4_JMET"    ] = "DeltaPhiMinN(4, GoodFatJet_phi, MET_phi)"
-
-                for obj, definition in objDefinitionsList[dfIdx].items():
-                    dfList[dfIdx] = dfList[dfIdx].Define(obj, definition)
-
-
-                ## RDF with at least 1 good AK4 Jet
-                dfIdx = 2
-                dfList.append(dfList[0].Filter("nGoodJet >= 1", "Greater than 1 good Jets"))
-
-                # Define objects and variables
-                objDefinitionsList.append(OrderedDict())
-                o = objDefinitionsList[dfIdx]
-                o["j1_pt"                ] = "GoodJet_pt[0]"
-                o["j1_eta"               ] = "GoodJet_eta[0]"
-                o["j1_phi"               ] = "GoodJet_phi[0]"
-                o["j1_mass"              ] = "GoodJet_mass[0]"
-                o["dPhi_j1MET"           ] = "abs(ROOT::VecOps::DeltaPhi(GoodJet_phi[0], MET_phi))"
-                o["dPhiMin_jMET"         ] = "ROOT::VecOps::Min(abs(ROOT::VecOps::DeltaPhi(GoodJet_phi, MET_phi)))"
-                o["dPhiMinUpTo2_jMET"    ] = "DeltaPhiMinN(2, GoodJet_phi, MET_phi)"
-                o["dPhiMinUpTo4_jMET"    ] = "DeltaPhiMinN(4, GoodJet_phi, MET_phi)"
-
-                for obj, definition in objDefinitionsList[dfIdx].items():
-                    dfList[dfIdx] = dfList[dfIdx].Define(obj, definition)
-
-
-                ## RDF with at least 2 good FatJets
-                dfIdx = 3
-
-                # Define dataframe
-                dfList.append(dfList[1].Filter("nGoodFatJet >= 2", "Greater than 2 good FatJets"))
-                 
-                # Define objects and variables
-                objDefinitionsList.append(OrderedDict())
-                o = objDefinitionsList[dfIdx]
-                o["J2_pt"             ] = "GoodFatJet_pt[1]"
-                o["J2_eta"            ] = "GoodFatJet_eta[1]"
-                o["J2_phi"            ] = "GoodFatJet_phi[1]"
-                o["J2_mass"           ] = "GoodFatJet_mass[1]"
-                o["J2_msoftdrop"      ] = "GoodFatJet_msoftdrop[1]"
-                o["J2_tau1"           ] = "GoodFatJet_tau1[1]"
-                o["J2_tau2"           ] = "GoodFatJet_tau2[1]"
-                o["J2_tau3"           ] = "GoodFatJet_tau3[1]"
-                o["J2_tau21"          ] = "GoodFatJet_tau21[1]"
-                o["J2_tau32"          ] = "GoodFatJet_tau32[1]"
-
-                o["dR_J1J2"           ] = "ROOT::VecOps::DeltaR(J1_eta, J2_eta, J1_phi, J2_phi)"
-                o["dPhiMin2_JMET"     ] = "DeltaPhiMinN(2, GoodFatJet_phi, MET_phi)"
-                o["dEta_J1J2"         ] = "std::abs(GoodFatJet_eta[0] - GoodFatJet_eta[1])"
-                o["dPhi_J2MET"        ] = "std::abs(ROOT::VecOps::DeltaPhi(GoodFatJet_phi[1], MET_phi))"
-                o["PtEtaPhiM_J1"      ] = "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<float> > (GoodFatJet_pt[0], GoodFatJet_eta[0], GoodFatJet_phi[0], GoodFatJet_mass[0])"
-                o["PtEtaPhiM_J2"      ] = "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<float> > (GoodFatJet_pt[1], GoodFatJet_eta[1], GoodFatJet_phi[1], GoodFatJet_mass[1])"
-                o["PtEtaPhiM_J1J2"    ] = "PtEtaPhiM_J1 + PtEtaPhiM_J2"
-
-                o["J1J2_mass"         ] = "PtEtaPhiM_J1J2.M()"
-                o["J1J2_mass2"        ] = "std::pow(J1J2_mass, 2)"
-                o["J1J2_pt"           ] = "PtEtaPhiM_J1J2.Pt()"
-                o["J1J2_pt2"          ] = "std::pow(J1J2_pt, 2)"
-                o["J1J2_phi"          ] = "PtEtaPhiM_J1J2.Phi()"
-                o["dPhi_J1J2MET"      ] = "std::abs(ROOT::VecOps::DeltaPhi(J1J2_phi, MET_phi))"
-
-                o["MT_AK8"            ] = "std::sqrt( J1J2_mass2  +  2 * ( std::sqrt(J1J2_mass2 + J1J2_pt2) * MET_pt - MET_pt * J1J2_pt * std::cos(dPhi_J1J2MET) ) )"
-                o["RT_AK8"            ] = "MET_pt / MT_AK8"
-             
-                for obj, definition in objDefinitionsList[dfIdx].items():
-                    dfList[dfIdx] = dfList[dfIdx].Define(obj, definition)
-
-
-                ## RDF with at least 2 good Jets
-                dfIdx = 4
-
-                # Define dataframe
-                dfList.append(dfList[2].Filter("nGoodJet >= 2", "Greater than 2 good Jets"))
-
-                # Define objects and variables
-                objDefinitionsList.append(OrderedDict())
-                o = objDefinitionsList[dfIdx]
-                o["j2_pt"             ] = "GoodJet_pt[1]"
-                o["j2_eta"            ] = "GoodJet_eta[1]"
-                o["j2_phi"            ] = "GoodJet_phi[1]"
-                o["j2_mass"           ] = "GoodJet_mass[1]"
-
-                o["dR_j1j2"           ] = "ROOT::VecOps::DeltaR(j1_eta, j2_eta, j1_phi, j2_phi)"
-                o["dPhiMin2_jMET"     ] = "DeltaPhiMinN(2, GoodJet_phi, MET_phi)"
-                o["dEta_j1j2"         ] = "std::abs(GoodJet_eta[0] - GoodJet_eta[1])"
-                o["dPhi_j2MET"        ] = "std::abs(ROOT::VecOps::DeltaPhi(GoodJet_phi[1], MET_phi))"
-                o["PtEtaPhiM_j1"      ] = "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<float> > (GoodJet_pt[0], GoodJet_eta[0], GoodJet_phi[0], GoodJet_mass[0])"
-                o["PtEtaPhiM_j2"      ] = "ROOT::Math::LorentzVector<ROOT::Math::PtEtaPhiM4D<float> > (GoodJet_pt[1], GoodJet_eta[1], GoodJet_phi[1], GoodJet_mass[1])"
-                o["PtEtaPhiM_j1j2"    ] = "PtEtaPhiM_j1 + PtEtaPhiM_j2"
-
-                o["j1j2_mass"         ] = "PtEtaPhiM_j1j2.M()"
-                o["j1j2_mass2"        ] = "std::pow(j1j2_mass, 2)"
-                o["j1j2_pt"           ] = "PtEtaPhiM_j1j2.Pt()"
-                o["j1j2_pt2"          ] = "std::pow(j1j2_pt, 2)"
-                o["j1j2_phi"          ] = "PtEtaPhiM_j1j2.Phi()"
-                o["dPhi_j1j2MET"      ] = "std::abs(ROOT::VecOps::DeltaPhi(j1j2_phi, MET_phi))"
-
-                o["MT_AK4"            ] = "std::sqrt( j1j2_mass2  +  2 * ( std::sqrt(j1j2_mass2 + j1j2_pt2) * MET_pt - MET_pt * j1j2_pt * std::cos(dPhi_j1j2MET) ) )"
-                o["RT_AK4"            ] = "MET_pt / MT_AK4"
-                
-                for obj, definition in objDefinitionsList[dfIdx].items():
-                    dfList[dfIdx] = dfList[dfIdx].Define(obj, definition)
-
-
-                ## Book histograms
-                for variable in variables:
-
-                    # Check if binning is defined for this variable
-                    if variable not in binning["noregex"]:
-                        regexes = list(binning["regex"].keys())
-                        indices = utl.inregex(variable, regexes)
-                        if len(indices) == 0:
-                            print("Binning of %s is not defined. Skipping." %variable)
-                            continue
-                        elif len(indices) > 1:
-                            print("%s matches several regexes. Binning cannot be defined. Skipping." %variable)
-                            continue
-                        else: 
-                            binning_ = binning["regex"][regexes[indices[0]]]
+                # Find from which RDataFrame the variable has been defined
+                for idx in range(len(definedVars)):
+                    if variable in definedVars[idx]:
+                        break
                     else:
-                        binning_ = binning["noregex"][variable]
+                        # If variable is not defined, then it's taken from the uncut dataframe
+                        if idx == len(definedVars)-1:
+                            idx = 0
 
-                    # Find from which RDataFrame the variable has been defined
-                    for idx in range(len(objDefinitionsList)):
-                        if variable in objDefinitionsList[idx].keys():
-                            break
-                        else:
-                            # If variable is not defined, then it's taken from the uncut dataframe
-                            if idx == len(objDefinitionsList)-1:
-                                idx = 0
-                    
-                    # Book histogram
-                    # Histograms should NOT be added together yet as RDataFrame does not proceed in one loop
-                    # Should be done at the very end
-                    weight = "genWeight"
-                    histsBatch[iFile][variable] = bookHistogram(dfList[idx], variable, binning_, weight)
-
-                elapsed = time.time() - tstart
-                print("Elapsed time: %d s" %elapsed)
+                # Check if variable present in dataframe
+                if not variable in dfList[idx].GetColumnNames():
+                    print("WARNING: Variable %s is not in dataframe (index %d). Will not be saved to output ROOT file." %(variable, idx))
+                    continue
+                
+                # Book histogram
+                # Histograms should NOT be added together yet as RDataFrame would not proceed in one loop in an efficient way
+                # Should be done at the very end
+                weight = "genWeight"
+                histsBatch[iFile][variable] = bookHistogram(dfList[idx], variable, binning_, weight)
 
 
-            ## Adding histograms of the batch together
-            print("Adding together histograms of batch %d..." %(len(hists)+1))
-            tstrat = time.time()
-            hists.append({})
-            for variable in histsBatch[0].keys():
-                hists[-1][variable] = histsBatch[0][variable]
-                for iFile in range(1, len(histsBatch)):
-                    hists[-1][variable].Add(histsBatch[iFile][variable].GetValue())
+            ## For sanity check, print defined variables not asked to be saved in histogram
+            definedVarsFlat = []
+            for idx in range(len(definedVars)):
+                definedVarsFlat = definedVarsFlat + definedVars[idx]
+            unsavedVars = [ variable for variable in definedVarsFlat if variable not in variables ]
+            if len(unsavedVars) > 0:
+                print("INFO: The following variable were defined but not instructed to be saved in ROOT file:")
+                for x in unsavedVars: print("\t%s" %x)
+                print("")
+
             elapsed = time.time() - tstart
             print("Elapsed time: %d s" %elapsed)
 
- 
-        ## Normalize histograms and write to output ROOT file
-        print("\nNormalizing histograms and writing to output ROOT file...")
-        tstart = time.time()
-        tfile.cd()
-        for variable in hists[0].keys():
-            hist = hists[0][variable]
-            for iFile in range(1, len(hists)):
-                hist.Add(hists[iFile][variable].GetValue())
-            hist.Scale( XSection*LUMI/nGenEvts )
-            writeHistogram(hist, "{}".format(variable))
-            print("%s histogram saved" %variable)
+
+        ## Adding histograms of the batch together
+        print("Adding together histograms of batch %d..." %(len(hists)+1))
+        tstrat = time.time()
+        hists.append({})
+        for variable in histsBatch[0].keys():
+            hists[-1][variable] = histsBatch[0][variable]
+            for iFile in range(1, len(histsBatch)):
+                hists[-1][variable].Add(histsBatch[iFile][variable].GetValue())
         elapsed = time.time() - tstart
         print("Elapsed time: %d s" %elapsed)
 
-        tfile.Close()
+
+    ## Normalize histograms and write to output ROOT file
+    print("\nNormalizing histograms and writing to output ROOT file...")
+    tstart = time.time()
+    tfile.cd()
+    for variable in hists[0].keys():
+        hist = hists[0][variable]
+        for iFile in range(1, len(hists)):
+            hist.Add(hists[iFile][variable].GetValue())
+        hist.Scale( XSection*LUMI/nGenEvts )
+        writeHistogram(hist, "{}".format(variable))
+        print("%s histogram saved" %variable)
+    elapsed = time.time() - tstart
+    print("Elapsed time: %d s" %elapsed)
+
+    tfile.Close()
 
 
 
@@ -372,32 +238,85 @@ if __name__ == "__main__":
 
     tstart = time.time()
 
-    ## Define samples for which to make histograms
-    #  key is the sample name
-    #  fileset denotes the path to the files composing this sample dataset
-    #  XSection is the cross-section of the sample process
-    with open("samples.json", 'r') as f:
-        samples0 = json.load(f)
+    ## Parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-m", "--mode",
+        choices=["RECREATE", "UPDATE"],
+        help="Mode in which to open the output ROOT file"
+        )
+    parser.add_argument(
+        "-v", "--variables",
+        help="json file listing variables to save"
+        )
+    parser.add_argument(
+        "-d", "--dataframes",
+        help="json file describing filters and defines of the RDataFrames needed to comoute the required variables"
+        )
+    parser.add_argument(
+        "-b", "--binning",
+        help="json file describing binning of the histograms"
+        )
+    parser.add_argument(
+        "-sd", "--samplesDescription",
+        help="json file describing samples location"
+        )
+    parser.add_argument(
+        "-s", "--samples",
+        help="Comma separated list samples to pick up among the samples described in the sample file"
+        )
+    parser.add_argument(
+        "-o", "--outputDirectory",
+        nargs="?",
+        const="./",
+        help="Path to the directory where to recreate/update ROOT file"
+        )
+    parser.add_argument(
+        "-l", "--lumi",
+        nargs="?",
+        default=59725.0,   # 21071.0+38654.0
+        help="Total luminosity for normalization of the histograms"
+        )
+    parser.add_argument(
+        "-nevts", "--nEvtsMaxPerBatch",
+        nargs="?",
+        default=5e6,
+        help="Maximum number of events per batches. RDT efficient features break down for too\
+              many events at once. Batches of files with limited number of events are made."
+        )
 
-    # Restrict to list of sample
-    if LIST_OF_SAMPLES == []:
-        samples = samples0
-    else:
-        samples = { sample: samples0[sample] for sample in samples0.keys() if sample in LIST_OF_SAMPLES }
 
+    args = parser.parse_args()
+    
 
-    ## Variables to histogram
-    with open("variables.json", 'r') as f:
+    # All samples description
+    samplesDescription = utl.makeJsonData(args.samplesDescription)
+
+    # Variables to histogram
+    with open(args.variables, 'r') as f:
         variables = json.load(f)["variables"]
 
+    # Define the binning of the different variables to histogram
+    with open(args.binning, 'r') as f:
+        binning = json.load(f)["binning"]
 
-    ## Define the binning of the different variables to histogram
-    with open("binning.json", 'r') as f:
-        binning = json.load(f)
+    # Read filters and defines instructions to build up sequentially RDataFrames
+    with open(args.dataframes, 'r') as f:
+        dataframes = json.load(f)["dataframes"]
 
+    # Get samples for which to make histograms
+    if not args.samples:
+        samplesNames = list(samplesDescription.keys())
+    else:
+        samplesNames = args.samples.split(",")
 
-    ## Make histograms
-    main(samples, variables, binning)
+    # Loop over all samples
+    for sampleName in samplesNames:
+        sample = samplesDescription[sampleName]
+        if "name" not in sample.keys():
+            sample["name"] = sampleName
+        # and make histograms
+        main(args.mode, variables, binning, sample, args.outputDirectory, float(args.lumi), float(args.nEvtsMaxPerBatch))
 
 
     elapsed = time.time() - tstart
