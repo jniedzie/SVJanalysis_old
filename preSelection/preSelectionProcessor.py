@@ -18,13 +18,13 @@ MET_FILTERS = (
     )
 
 
-def np_acc_int():
+def intColumnAccumulator():
     return processor.column_accumulator(np.array([], dtype=np.int64))
 
-def np_acc_float():
+def floatColumnAccumulator():
     return processor.column_accumulator(np.array([], dtype=np.float64))
 
-def np_acc_object():
+def objectColumnAccumulator():
     return processor.column_accumulator(np.array([], dtype=object))
 
 
@@ -47,59 +47,59 @@ class Preselection(processor.ProcessorABC):
         """Define all variables to be stored. Keep same data structure as PFnanoAOD"""
 
         self._accumulator = processor.dict_accumulator({
-            "nFatJet"         : np_acc_int(),
-            "FatJet_pt"       : np_acc_object(),
-            "FatJet_eta"      : np_acc_object(),
-            "FatJet_phi"      : np_acc_object(),
-            "FatJet_mass"     : np_acc_object(),
-            "FatJet_msoftdrop": np_acc_object(),
-            "FatJet_n2b1"     : np_acc_object(),
-            "FatJet_n3b1"     : np_acc_object(),
-            "FatJet_tau1"     : np_acc_object(),
-            "FatJet_tau2"     : np_acc_object(),
-            "FatJet_tau3"     : np_acc_object(),
-            "FatJet_tau4"     : np_acc_object(),
+            "nFatJet"         : intColumnAccumulator(),
+            "FatJet_pt"       : objectColumnAccumulator(),
+            "FatJet_eta"      : objectColumnAccumulator(),
+            "FatJet_phi"      : objectColumnAccumulator(),
+            "FatJet_mass"     : objectColumnAccumulator(),
+            "FatJet_msoftdrop": objectColumnAccumulator(),
+            "FatJet_n2b1"     : objectColumnAccumulator(),
+            "FatJet_n3b1"     : objectColumnAccumulator(),
+            "FatJet_tau1"     : objectColumnAccumulator(),
+            "FatJet_tau2"     : objectColumnAccumulator(),
+            "FatJet_tau3"     : objectColumnAccumulator(),
+            "FatJet_tau4"     : objectColumnAccumulator(),
 
-            "nJet"     : np_acc_int(),
-            "Jet_mass" : np_acc_object(),
-            "Jet_pt"   : np_acc_object(),
-            "Jet_eta"  : np_acc_object(),
-            "Jet_phi"  : np_acc_object(),
-            "Jet_chHEF": np_acc_object(),
-            "Jet_neHEF": np_acc_object(),
+            "nJet"     : intColumnAccumulator(),
+            "Jet_mass" : objectColumnAccumulator(),
+            "Jet_pt"   : objectColumnAccumulator(),
+            "Jet_eta"  : objectColumnAccumulator(),
+            "Jet_phi"  : objectColumnAccumulator(),
+            "Jet_chHEF": objectColumnAccumulator(),
+            "Jet_neHEF": objectColumnAccumulator(),
 
-            "nJetPFCands"       : np_acc_int(),
-            "JetPFCands_jetIdx" : np_acc_object(),
-            "JetPFCands_eta"    : np_acc_object(),
-            "JetPFCands_mass"   : np_acc_object(),
-            "JetPFCands_phi"    : np_acc_object(),
-            "JetPFCands_pt"     : np_acc_object(),
-            "JetPFCands_trkChi2": np_acc_object(),
-            "JetPFCands_vtxChi2": np_acc_object(),
-            "JetPFCands_charge" : np_acc_object(),
-            "JetPFCands_pdgId"  : np_acc_object(),
+            "nJetPFCands"       : intColumnAccumulator(),
+            "JetPFCands_jetIdx" : objectColumnAccumulator(),
+            "JetPFCands_eta"    : objectColumnAccumulator(),
+            "JetPFCands_mass"   : objectColumnAccumulator(),
+            "JetPFCands_phi"    : objectColumnAccumulator(),
+            "JetPFCands_pt"     : objectColumnAccumulator(),
+            "JetPFCands_trkChi2": objectColumnAccumulator(),
+            "JetPFCands_vtxChi2": objectColumnAccumulator(),
+            "JetPFCands_charge" : objectColumnAccumulator(),
+            "JetPFCands_pdgId"  : objectColumnAccumulator(),
         
-            "nFatJetPFCands"       : np_acc_int(),
-            "FatJetPFCands_jetIdx" : np_acc_object(),
-            "FatJetPFCands_eta"    : np_acc_object(),
-            "FatJetPFCands_mass"   : np_acc_object(),
-            "FatJetPFCands_phi"    : np_acc_object(),
-            "FatJetPFCands_pt"     : np_acc_object(),
-            "FatJetPFCands_trkChi2": np_acc_object(),
-            "FatJetPFCands_vtxChi2": np_acc_object(),
-            "FatJetPFCands_charge" : np_acc_object(),
-            "FatJetPFCands_pdgId"  : np_acc_object(),
+            "nFatJetPFCands"       : intColumnAccumulator(),
+            "FatJetPFCands_jetIdx" : objectColumnAccumulator(),
+            "FatJetPFCands_eta"    : objectColumnAccumulator(),
+            "FatJetPFCands_mass"   : objectColumnAccumulator(),
+            "FatJetPFCands_phi"    : objectColumnAccumulator(),
+            "FatJetPFCands_pt"     : objectColumnAccumulator(),
+            "FatJetPFCands_trkChi2": objectColumnAccumulator(),
+            "FatJetPFCands_vtxChi2": objectColumnAccumulator(),
+            "FatJetPFCands_charge" : objectColumnAccumulator(),
+            "FatJetPFCands_pdgId"  : objectColumnAccumulator(),
 
-            "MET_phi"         : np_acc_float(),
-            "MET_pt"          : np_acc_float(),
-            "MET_significance": np_acc_float(),
-            "MET_sumEt"       : np_acc_float(),
-            "PuppiMET_phi"    : np_acc_float(),
-            "PuppiMET_pt"     : np_acc_float(),
-            "PuppiMET_sumEt"  : np_acc_float(),
-            "RawMET_phi"      : np_acc_float(),
-            "RawMET_pt"       : np_acc_float(),
-            "RawMET_sumEt"    : np_acc_float(),
+            "MET_phi"         : floatColumnAccumulator(),
+            "MET_pt"          : floatColumnAccumulator(),
+            "MET_significance": floatColumnAccumulator(),
+            "MET_sumEt"       : floatColumnAccumulator(),
+            "PuppiMET_phi"    : floatColumnAccumulator(),
+            "PuppiMET_pt"     : floatColumnAccumulator(),
+            "PuppiMET_sumEt"  : floatColumnAccumulator(),
+            "RawMET_phi"      : floatColumnAccumulator(),
+            "RawMET_pt"       : floatColumnAccumulator(),
+            "RawMET_sumEt"    : floatColumnAccumulator(),
 
             "cutflow": processor.dict_accumulator(
                 OrderedDict(
