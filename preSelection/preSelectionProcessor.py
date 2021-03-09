@@ -18,15 +18,12 @@ MET_FILTERS = (
     )
 
 
-def intColumnAccumulator():
-    return processor.column_accumulator(np.array([], dtype=np.int64))
+## Define some short-hands for column and value accumulator
+def column_accumulator(type_):
+    return processor.column_accumulator(np.array([], dtype=type_))
 
-def floatColumnAccumulator():
-    return processor.column_accumulator(np.array([], dtype=np.float64))
-
-def objectColumnAccumulator():
-    return processor.column_accumulator(np.array([], dtype=object))
-
+def value_accumulator(type_, initial=0):
+    return processor.value_accumulator(type_, initial=initial)
 
 
 class Preselection(processor.ProcessorABC):
@@ -47,68 +44,68 @@ class Preselection(processor.ProcessorABC):
         """Define all variables to be stored. Keep same data structure as PFnanoAOD"""
 
         self._accumulator = processor.dict_accumulator({
-            "nFatJet"         : intColumnAccumulator(),
-            "FatJet_pt"       : objectColumnAccumulator(),
-            "FatJet_eta"      : objectColumnAccumulator(),
-            "FatJet_phi"      : objectColumnAccumulator(),
-            "FatJet_mass"     : objectColumnAccumulator(),
-            "FatJet_msoftdrop": objectColumnAccumulator(),
-            "FatJet_n2b1"     : objectColumnAccumulator(),
-            "FatJet_n3b1"     : objectColumnAccumulator(),
-            "FatJet_tau1"     : objectColumnAccumulator(),
-            "FatJet_tau2"     : objectColumnAccumulator(),
-            "FatJet_tau3"     : objectColumnAccumulator(),
-            "FatJet_tau4"     : objectColumnAccumulator(),
+            "nFatJet"         : column_accumulator(np.int64),
+            "FatJet_pt"       : column_accumulator(object),
+            "FatJet_eta"      : column_accumulator(object),
+            "FatJet_phi"      : column_accumulator(object),
+            "FatJet_mass"     : column_accumulator(object),
+            "FatJet_msoftdrop": column_accumulator(object),
+            "FatJet_n2b1"     : column_accumulator(object),
+            "FatJet_n3b1"     : column_accumulator(object),
+            "FatJet_tau1"     : column_accumulator(object),
+            "FatJet_tau2"     : column_accumulator(object),
+            "FatJet_tau3"     : column_accumulator(object),
+            "FatJet_tau4"     : column_accumulator(object),
 
-            "nJet"     : intColumnAccumulator(),
-            "Jet_mass" : objectColumnAccumulator(),
-            "Jet_pt"   : objectColumnAccumulator(),
-            "Jet_eta"  : objectColumnAccumulator(),
-            "Jet_phi"  : objectColumnAccumulator(),
-            "Jet_chHEF": objectColumnAccumulator(),
-            "Jet_neHEF": objectColumnAccumulator(),
+            "nJet"     : column_accumulator(np.int64),
+            "Jet_mass" : column_accumulator(object),
+            "Jet_pt"   : column_accumulator(object),
+            "Jet_eta"  : column_accumulator(object),
+            "Jet_phi"  : column_accumulator(object),
+            "Jet_chHEF": column_accumulator(object),
+            "Jet_neHEF": column_accumulator(object),
 
-            "nJetPFCands"       : intColumnAccumulator(),
-            "JetPFCands_jetIdx" : objectColumnAccumulator(),
-            "JetPFCands_eta"    : objectColumnAccumulator(),
-            "JetPFCands_mass"   : objectColumnAccumulator(),
-            "JetPFCands_phi"    : objectColumnAccumulator(),
-            "JetPFCands_pt"     : objectColumnAccumulator(),
-            "JetPFCands_trkChi2": objectColumnAccumulator(),
-            "JetPFCands_vtxChi2": objectColumnAccumulator(),
-            "JetPFCands_charge" : objectColumnAccumulator(),
-            "JetPFCands_pdgId"  : objectColumnAccumulator(),
+            "nJetPFCands"       : column_accumulator(np.int64),
+            "JetPFCands_jetIdx" : column_accumulator(object),
+            "JetPFCands_eta"    : column_accumulator(object),
+            "JetPFCands_mass"   : column_accumulator(object),
+            "JetPFCands_phi"    : column_accumulator(object),
+            "JetPFCands_pt"     : column_accumulator(object),
+            "JetPFCands_trkChi2": column_accumulator(object),
+            "JetPFCands_vtxChi2": column_accumulator(object),
+            "JetPFCands_charge" : column_accumulator(object),
+            "JetPFCands_pdgId"  : column_accumulator(object),
         
-            "nFatJetPFCands"       : intColumnAccumulator(),
-            "FatJetPFCands_jetIdx" : objectColumnAccumulator(),
-            "FatJetPFCands_eta"    : objectColumnAccumulator(),
-            "FatJetPFCands_mass"   : objectColumnAccumulator(),
-            "FatJetPFCands_phi"    : objectColumnAccumulator(),
-            "FatJetPFCands_pt"     : objectColumnAccumulator(),
-            "FatJetPFCands_trkChi2": objectColumnAccumulator(),
-            "FatJetPFCands_vtxChi2": objectColumnAccumulator(),
-            "FatJetPFCands_charge" : objectColumnAccumulator(),
-            "FatJetPFCands_pdgId"  : objectColumnAccumulator(),
+            "nFatJetPFCands"       : column_accumulator(np.int64),
+            "FatJetPFCands_jetIdx" : column_accumulator(object),
+            "FatJetPFCands_eta"    : column_accumulator(object),
+            "FatJetPFCands_mass"   : column_accumulator(object),
+            "FatJetPFCands_phi"    : column_accumulator(object),
+            "FatJetPFCands_pt"     : column_accumulator(object),
+            "FatJetPFCands_trkChi2": column_accumulator(object),
+            "FatJetPFCands_vtxChi2": column_accumulator(object),
+            "FatJetPFCands_charge" : column_accumulator(object),
+            "FatJetPFCands_pdgId"  : column_accumulator(object),
 
-            "MET_phi"         : floatColumnAccumulator(),
-            "MET_pt"          : floatColumnAccumulator(),
-            "MET_significance": floatColumnAccumulator(),
-            "MET_sumEt"       : floatColumnAccumulator(),
-            "PuppiMET_phi"    : floatColumnAccumulator(),
-            "PuppiMET_pt"     : floatColumnAccumulator(),
-            "PuppiMET_sumEt"  : floatColumnAccumulator(),
-            "RawMET_phi"      : floatColumnAccumulator(),
-            "RawMET_pt"       : floatColumnAccumulator(),
-            "RawMET_sumEt"    : floatColumnAccumulator(),
+            "MET_phi"         : column_accumulator(np.float64),
+            "MET_pt"          : column_accumulator(np.float64),
+            "MET_significance": column_accumulator(np.float64),
+            "MET_sumEt"       : column_accumulator(np.float64),
+            "PuppiMET_phi"    : column_accumulator(np.float64),
+            "PuppiMET_pt"     : column_accumulator(np.float64),
+            "PuppiMET_sumEt"  : column_accumulator(np.float64),
+            "RawMET_phi"      : column_accumulator(np.float64),
+            "RawMET_pt"       : column_accumulator(np.float64),
+            "RawMET_sumEt"    : column_accumulator(np.float64),
 
             "cutflow": processor.dict_accumulator(
                 OrderedDict(
                     **{
-                        "all": processor.value_accumulator(int, initial=0),
-                        "trigger": processor.value_accumulator(int, initial=0),
+                        "all": value_accumulator(int),
+                        "trigger": value_accumulator(int),
                     },
                     **{
-                        METFilter: processor.value_accumulator(int, initial=0) for METFilter in MET_FILTERS
+                        METFilter: value_accumulator(int) for METFilter in MET_FILTERS
                     }
                     )
                 ),
@@ -151,39 +148,6 @@ class Preselection(processor.ProcessorABC):
         goodJets = obj.GoodJets(events)
         goodJetPFCands = obj.GoodJetPFCands(events, goodJets)
         
-
-#        ## Example of difference between the two schemas
-#        ## "schema": BaseSchema
-#        output["muon_pt"] += processor.column_accumulator(ak.to_numpy(ak.flatten(events.Muon_pt)))
-#        ## "schema": NanoAODSchema
-#        output["muon_pt"] += processor.column_accumulator(ak.to_numpy(ak.flatten(events.Muon.pt)))
-#
-#        ## Without object pre-selection
-#        output["nFatJet"] += processor.column_accumulator(ak.to_numpy(ak.flatten(events.nFatJet, axis=None)))
-#
-#        output["FatJet_pt"]        += processor.column_accumulator(np.array(ak.to_list(events.FatJet_pt)       , dtype=object))
-#        output["FatJet_eta"]       += processor.column_accumulator(np.array(ak.to_list(events.FatJet_eta)      , dtype=object))
-#        output["FatJet_phi"]       += processor.column_accumulator(np.array(ak.to_list(events.FatJet_phi)      , dtype=object))
-#        output["FatJet_mass"]      += processor.column_accumulator(np.array(ak.to_list(events.FatJet_mass)     , dtype=object))
-#        output["FatJet_msoftdrop"] += processor.column_accumulator(np.array(ak.to_list(events.FatJet_msoftdrop), dtype=object))
-#        output["FatJet_n2b1"]      += processor.column_accumulator(np.array(ak.to_list(events.FatJet_n2b1)     , dtype=object))
-#        output["FatJet_n3b1"]      += processor.column_accumulator(np.array(ak.to_list(events.FatJet_n3b1)     , dtype=object))
-#        output["FatJet_tau1"]      += processor.column_accumulator(np.array(ak.to_list(events.FatJet_tau1)     , dtype=object))
-#        output["FatJet_tau2"]      += processor.column_accumulator(np.array(ak.to_list(events.FatJet_tau2)     , dtype=object))
-#        output["FatJet_tau3"]      += processor.column_accumulator(np.array(ak.to_list(events.FatJet_tau3)     , dtype=object))
-#        output["FatJet_tau4"]      += processor.column_accumulator(np.array(ak.to_list(events.FatJet_tau4)     , dtype=object))
-#
-#        output["nFatJetPFCands"]       += processor.column_accumulator(ak.to_numpy(ak.flatten(events.nFatJetPFCands, axis=None)))
-#        output["FatJetPFCands_jetIdx"] += processor.column_accumulator(np.array(ak.to_list(events.FatJetPFCands_jetIdx) , dtype=object))
-#        output["FatJetPFCands_eta"]    += processor.column_accumulator(np.array(ak.to_list(events.FatJetPFCands_eta)    , dtype=object))
-#        output["FatJetPFCands_mass"]   += processor.column_accumulator(np.array(ak.to_list(events.FatJetPFCands_mass)   , dtype=object))
-#        output["FatJetPFCands_phi"]    += processor.column_accumulator(np.array(ak.to_list(events.FatJetPFCands_phi)    , dtype=object))
-#        output["FatJetPFCands_pt"]     += processor.column_accumulator(np.array(ak.to_list(events.FatJetPFCands_pt)     , dtype=object))
-#        output["FatJetPFCands_trkChi2"]+= processor.column_accumulator(np.array(ak.to_list(events.FatJetPFCands_trkChi2), dtype=object))
-#        output["FatJetPFCands_vtxChi2"]+= processor.column_accumulator(np.array(ak.to_list(events.FatJetPFCands_vtxChi2), dtype=object))
-#        output["FatJetPFCands_charge"] += processor.column_accumulator(np.array(ak.to_list(events.FatJetPFCands_charge) , dtype=object))
-#        output["FatJetPFCands_pdgId"]  += processor.column_accumulator(np.array(ak.to_list(events.FatJetPFCands_pdgId)  , dtype=object))
-
 
         # Fat Jets
         output["nFatJet"] += processor.column_accumulator(ak.to_numpy(ak.flatten(goodFatJets.n, axis=None)))
