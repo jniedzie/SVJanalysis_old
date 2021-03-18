@@ -1,4 +1,5 @@
 import sys
+import os
 import json
 import argparse
 import time
@@ -42,7 +43,7 @@ def writeHistogram(h, name):
 
 ## Main function making histograms
 
-def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER_BATCH):
+def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER_BATCH, VERBOSE):
 
     # Set up multi-threading capability of ROOT
     ROOT.ROOT.EnableImplicitMT()
@@ -53,7 +54,7 @@ def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER
 
     # Create/update output file
     ROOTfileName = outputDirectory + sampleName + ".root"
-    print("\nWill %s ROOT file %s." %(MODE.lower(), ROOTfileName))
+    if VERBOSE>0: print("\nWill %s ROOT file %s." %(MODE.lower(), ROOTfileName))
     tfile = ROOT.TFile(ROOTfileName, MODE)
 
     # Initialise event counter
@@ -82,13 +83,14 @@ def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER
                 nEvts = nEvtsFile
                 batches.append([file_])
             else:
-                print("WARNING: More than %d events in file %s" %(N_EVTS_MAX_PER_BATCH, file_))
-                print("         Creating batch with 1 file, exceeding maximum number of events per batch.")
+                if VERBOSE>0: 
+                    print("WARNING: More than %d events in file %s" %(N_EVTS_MAX_PER_BATCH, file_))
+                    print("         Creating batch with 1 file, exceeding maximum number of events per batch.")
                 nEvts = nEvtsFile
                 batches[-1].append(file_)
                 if ifile+1 != nFilesTot: batches.append([])
 
-    print("%d batches of files made" %(len(batches)))
+    if VERBOSE>0: print("%d batches of files made" %(len(batches)))
 
     # Object to store histograms from the different batches of file sets
     hists = []
@@ -96,7 +98,7 @@ def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER
 
     # Loop over all batches of files
     for fileset in batches:
-        print("")
+        if VERBOSE>0: print("")
 
         # Object to store histograms from the different files in this batch
         histsBatch = []
@@ -106,7 +108,7 @@ def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER
         for iFile, fileName in enumerate(fileset):
 
             tstart = time.time()
-            print("Reading file %d out of %d" %(iFile+1, nFiles))
+            if VERBOSE>0: print("Reading file %d out of %d" %(iFile+1, nFiles))
 
             histsBatch.append({})
 
@@ -159,10 +161,10 @@ def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER
                     regexes = list(binning["regex"].keys())
                     indices = utl.inregex(variable, regexes)
                     if len(indices) == 0:
-                        print("Binning of %s is not defined. Skipping." %variable)
+                        if VERBOSE>0: print("WARNING: Binning of %s is not defined. Skipping." %variable)
                         continue
                     elif len(indices) > 1:
-                        print("%s matches several regexes. Binning cannot be defined. Skipping." %variable)
+                        if VERBOSE>0: print("WARNING: %s matches several regexes. Binning cannot be defined. Skipping." %variable)
                         continue
                     else: 
                         binning_ = binning["regex"][regexes[indices[0]]]
@@ -180,7 +182,7 @@ def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER
 
                 # Check if variable present in dataframe
                 if not variable in dfList[idx].GetColumnNames():
-                    print("WARNING: Variable %s is not in dataframe (index %d). Will not be saved to output ROOT file." %(variable, idx))
+                    if VERBOSE>0: print("WARNING: Variable %s is not in dataframe (index %d). Will not be saved to output ROOT file." %(variable, idx))
                     continue
                 
                 # Book histogram
@@ -195,17 +197,17 @@ def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER
             for idx in range(len(definedVars)):
                 definedVarsFlat = definedVarsFlat + definedVars[idx]
             unsavedVars = [ variable for variable in definedVarsFlat if variable not in variables ]
-            if len(unsavedVars) > 0:
+            if len(unsavedVars) > 0 and VERBOSE>1:
                 print("INFO: The following variable were defined but not instructed to be saved in ROOT file:")
                 for x in unsavedVars: print("\t%s" %x)
                 print("")
 
             elapsed = time.time() - tstart
-            print("Elapsed time: %d s" %elapsed)
+            if VERBOSE>0: print("Elapsed time: %d s" %elapsed)
 
 
         ## Adding histograms of the batch together
-        print("Adding together histograms of batch %d..." %(len(hists)+1))
+        if VERBOSE>0: print("Adding together histograms of batch %d..." %(len(hists)+1))
         tstrat = time.time()
         hists.append({})
         for variable in histsBatch[0].keys():
@@ -213,11 +215,11 @@ def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER
             for iFile in range(1, len(histsBatch)):
                 hists[-1][variable].Add(histsBatch[iFile][variable].GetValue())
         elapsed = time.time() - tstart
-        print("Elapsed time: %d s" %elapsed)
+        if VERBOSE>0: print("Elapsed time: %d s" %elapsed)
 
 
     ## Normalize histograms and write to output ROOT file
-    print("\nNormalizing histograms and writing to output ROOT file...")
+    if VERBOSE>0: print("\nNormalizing histograms and writing to output ROOT file...")
     tstart = time.time()
     tfile.cd()
     for variable in hists[0].keys():
@@ -226,9 +228,9 @@ def main(MODE, variables, binning, sample, outputDirectory, LUMI, N_EVTS_MAX_PER
             hist.Add(hists[iFile][variable].GetValue())
         hist.Scale( XSection*LUMI/nGenEvts )
         writeHistogram(hist, "{}".format(variable))
-        print("%s histogram saved" %variable)
+        if VERBOSE>1: print("%s histogram saved" %variable)
     elapsed = time.time() - tstart
-    print("Elapsed time: %d s" %elapsed)
+    if VERBOSE>0: print("Elapsed time: %d s" %elapsed)
 
     tfile.Close()
 
@@ -246,8 +248,8 @@ if __name__ == "__main__":
         help="Mode in which to open the output ROOT file"
         )
     parser.add_argument(
-        "-v", "--variables",
-        help="json file listing variables to save"
+        "-var", "--variables",
+        help="json file listing variables to save or comma separated variable names"
         )
     parser.add_argument(
         "-d", "--dataframes",
@@ -284,17 +286,31 @@ if __name__ == "__main__":
         help="Maximum number of events per batches. RDT efficient features break down for too\
               many events at once. Batches of files with limited number of events are made."
         )
-
+    parser.add_argument(
+        "-v", "--verbose",
+        choices=["0", "1", "2"],
+        nargs="?",
+        default="1",
+        help="Verbose level"
+        )
 
     args = parser.parse_args()
+
     
+    # Create output directory if does not exist
+    outputDir = args.outputDirectory
+    if not os.path.exists(outputDir):
+        os.makedirs(outputDir)
 
     # All samples description
     samplesDescription = utl.makeJsonData(args.samplesDescription)
 
     # Variables to histogram
-    with open(args.variables, 'r') as f:
-        variables = json.load(f)["variables"]
+    if args.variables.endswith(".json"):
+        with open(args.variables, 'r') as f:
+            variables = json.load(f)["variables"]
+    else:
+        variables = args.variables.split(",")
 
     # Define the binning of the different variables to histogram
     with open(args.binning, 'r') as f:
@@ -311,12 +327,12 @@ if __name__ == "__main__":
         samplesNames = args.samples.split(",")
 
     # Loop over all samples
-    for sampleName in samplesNames:
+    for idx, sampleName in enumerate(samplesNames):
         sample = samplesDescription[sampleName]
         if "name" not in sample.keys():
             sample["name"] = sampleName
         # and make histograms
-        main(args.mode, variables, binning, sample, args.outputDirectory, float(args.lumi), float(args.nEvtsMaxPerBatch))
+        main(args.mode, variables, binning, sample, outputDir, float(args.lumi), float(args.nEvtsMaxPerBatch), int(args.verbose))
 
 
     elapsed = time.time() - tstart

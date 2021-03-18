@@ -35,6 +35,7 @@
     "J2_tau21",
     "J2_tau32",
 
+    "dPhi_J1J2",
     "dR_J1J2",
     "dEta_J1J2",
     "J1J2_mass",
@@ -47,11 +48,6 @@
     "dPhiMinUpTo2_JMET",
     "dPhiMinUpTo4_JMET",
     "dPhiMin2_JMET",
-
-    "MET_pt",
-    "RawMET_pt",
-    "PuppiMET_pt",
-    "GenMET_pt",
 
     "HT_AK8",
     "ST_AK8",
@@ -76,6 +72,7 @@
     "j2_phi",
     "j2_mass",
 
+    "dPhi_j1j2",
     "dR_j1j2",
     "dEta_j1j2",
     "j1j2_mass",

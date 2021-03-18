@@ -1,6 +1,6 @@
 {
 "CONSTANTS": {
-    "PATH_TCHANNEL": "/eos/home-f/fleble/SVJ/data/production/102X/tchannel",
+    "PATH_TCHANNEL": "/eos/cms/store/group/phys_exotica/svjets/t_channel/samples/102X",
     "PATH_QCD_PT_170to300"  : "/store/mc/RunIISummer19UL17NanoAOD/QCD_Pt_170to300_TuneCP5_13TeV_pythia8/NANOAODSIM/106X_mc2017_realistic_v6-v1",
     "PATH_QCD_PT_300to470"  : "/store/mc/RunIISummer19UL17NanoAOD/QCD_Pt_300to470_TuneCP5_13TeV_pythia8/NANOAODSIM/106X_mc2017_realistic_v6-v1",
     "PATH_QCD_PT_470to600"  : "/store/mc/RunIISummer19UL17NanoAOD/QCD_Pt_470to600_TuneCP5_13TeV_pythia8/NANOAODSIM/106X_mc2017_realistic_v6-v2",
@@ -12,6 +12,12 @@
     "PATH_QCD_PT_2400to3200": "/store/mc/RunIISummer19UL17NanoAOD/QCD_Pt_2400to3200_TuneCP5_13TeV_pythia8/NANOAODSIM/106X_mc2017_realistic_v6-v2",
     "PATH_QCD_PT_3200toInf" : "/store/mc/RunIISummer19UL17NanoAOD/QCD_Pt_3200toInf_TuneCP5_13TeV_pythia8/NANOAODSIM/106X_mc2017_realistic_v6-v2"
 },
+
+
+"schannel": {
+    "fileset": ["/afs/cern.ch/work/j/jniedzie/public/for_Florian/s_channel_nanoAOD.root"],
+    "XSection": 1.0
+    },
 
 "tchannel_mMed-1000_mDark-20_rinv-0p3": {
     "fileset": ["{PATH_TCHANNEL}/mMed-1000_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8/NANOAODJMAR/merged.root"],
