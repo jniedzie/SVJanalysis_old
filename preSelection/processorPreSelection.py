@@ -2,6 +2,7 @@ from coffea import processor
 import awkward as ak
 import numpy as np
 from collections import OrderedDict
+import sys
 
 import objects as obj
 
@@ -40,10 +41,97 @@ class Preselection(processor.ProcessorABC):
 
     """
 
-    def __init__(self):
+    def __init__(self, inputFileType="PFnano102X"):
         """Define all variables to be stored. Keep same data structure as PFnanoAOD"""
 
+        self.inputFileType = inputFileType
+
+        ## Jets, jetPFCands collections and matching of the two vary between PFnano102X and PFnano106X
+        if self.inputFileType == "PFnano102X":
+            jetPFCandsDict = {
+                "nJetPFCands"       : column_accumulator(np.int64),
+                "JetPFCands_eta"    : column_accumulator(object),
+                "JetPFCands_mass"   : column_accumulator(object),
+                "JetPFCands_phi"    : column_accumulator(object),
+                "JetPFCands_pt"     : column_accumulator(object),
+                "JetPFCands_trkChi2": column_accumulator(object),
+                "JetPFCands_vtxChi2": column_accumulator(object),
+                "JetPFCands_charge" : column_accumulator(object),
+                "JetPFCands_pdgId"  : column_accumulator(object),
+            
+                "nFatJetPFCands"       : column_accumulator(np.int64),
+                "FatJetPFCands_eta"    : column_accumulator(object),
+                "FatJetPFCands_mass"   : column_accumulator(object),
+                "FatJetPFCands_phi"    : column_accumulator(object),
+                "FatJetPFCands_pt"     : column_accumulator(object),
+                "FatJetPFCands_trkChi2": column_accumulator(object),
+                "FatJetPFCands_vtxChi2": column_accumulator(object),
+                "FatJetPFCands_charge" : column_accumulator(object),
+                "FatJetPFCands_pdgId"  : column_accumulator(object),
+                }
+            jetPFCandsMatchingDict = {
+                "JetPFCands_jetIdx"   : column_accumulator(object),
+                "FatJetPFCands_jetIdx": column_accumulator(object),
+                }
+
+        elif self.inputFileType == "PFnano106X":
+            jetPFCandsDict = {
+                "nJetPFCands"       : column_accumulator(np.int64),
+                "JetPFCands_eta"    : column_accumulator(object),
+                "JetPFCands_mass"   : column_accumulator(object),
+                "JetPFCands_phi"    : column_accumulator(object),
+                "JetPFCands_pt"     : column_accumulator(object),
+                "JetPFCands_trkChi2": column_accumulator(object),
+                "JetPFCands_vtxChi2": column_accumulator(object),
+                "JetPFCands_charge" : column_accumulator(object),
+                "JetPFCands_pdgId"  : column_accumulator(object),
+                }
+            jetPFCandsMatchingDict = {
+                "nJetPFCandsAK4"       : column_accumulator(np.int64),
+                "JetPFCandsAK4_jetIdx" : column_accumulator(object),
+                "JetPFCandsAK4_candIdx": column_accumulator(object),
+                "nJetPFCandsAK8"       : column_accumulator(np.int64),
+                "JetPFCandsAK8_jetIdx" : column_accumulator(object),
+                "JetPFCandsAK8_candIdx": column_accumulator(object),
+                }
+
+        else:
+            print("ERROR: Unknown inputFileType %s" %inputFileType)
+            sys.exit()
+
+
+        ## Dictionary to store cut efficiencies
+        cutflowDict = { "cutflow": processor.dict_accumulator(OrderedDict(
+                          **{ "all": value_accumulator(int),
+                              "trigger": value_accumulator(int),
+                          },
+                          **{
+                              METFilter: value_accumulator(int) for METFilter in MET_FILTERS
+                          }
+                      ))}
+
+
+        ## Define accumulator
         self._accumulator = processor.dict_accumulator({
+            ## Event level variables
+            **{
+            # MET
+            "MET_phi"         : column_accumulator(np.float64),
+            "MET_pt"          : column_accumulator(np.float64),
+            "MET_significance": column_accumulator(np.float64),
+            "MET_sumEt"       : column_accumulator(np.float64),
+            "PuppiMET_phi"    : column_accumulator(np.float64),
+            "PuppiMET_pt"     : column_accumulator(np.float64),
+            "PuppiMET_sumEt"  : column_accumulator(np.float64),
+            "RawMET_phi"      : column_accumulator(np.float64),
+            "RawMET_pt"       : column_accumulator(np.float64),
+            "RawMET_sumEt"    : column_accumulator(np.float64),
+            # Event weight
+            "genWeight"       : column_accumulator(np.float64),
+             },
+
+            ## Jet collections variables
+            **{
             "nFatJet"         : column_accumulator(np.int64),
             "FatJet_pt"       : column_accumulator(object),
             "FatJet_eta"      : column_accumulator(object),
@@ -64,51 +152,16 @@ class Preselection(processor.ProcessorABC):
             "Jet_phi"  : column_accumulator(object),
             "Jet_chHEF": column_accumulator(object),
             "Jet_neHEF": column_accumulator(object),
+            },
 
-            "nJetPFCands"       : column_accumulator(np.int64),
-            "JetPFCands_jetIdx" : column_accumulator(object),
-            "JetPFCands_eta"    : column_accumulator(object),
-            "JetPFCands_mass"   : column_accumulator(object),
-            "JetPFCands_phi"    : column_accumulator(object),
-            "JetPFCands_pt"     : column_accumulator(object),
-            "JetPFCands_trkChi2": column_accumulator(object),
-            "JetPFCands_vtxChi2": column_accumulator(object),
-            "JetPFCands_charge" : column_accumulator(object),
-            "JetPFCands_pdgId"  : column_accumulator(object),
-        
-            "nFatJetPFCands"       : column_accumulator(np.int64),
-            "FatJetPFCands_jetIdx" : column_accumulator(object),
-            "FatJetPFCands_eta"    : column_accumulator(object),
-            "FatJetPFCands_mass"   : column_accumulator(object),
-            "FatJetPFCands_phi"    : column_accumulator(object),
-            "FatJetPFCands_pt"     : column_accumulator(object),
-            "FatJetPFCands_trkChi2": column_accumulator(object),
-            "FatJetPFCands_vtxChi2": column_accumulator(object),
-            "FatJetPFCands_charge" : column_accumulator(object),
-            "FatJetPFCands_pdgId"  : column_accumulator(object),
+            ## JetPFCands variables
+            **jetPFCandsDict,
 
-            "MET_phi"         : column_accumulator(np.float64),
-            "MET_pt"          : column_accumulator(np.float64),
-            "MET_significance": column_accumulator(np.float64),
-            "MET_sumEt"       : column_accumulator(np.float64),
-            "PuppiMET_phi"    : column_accumulator(np.float64),
-            "PuppiMET_pt"     : column_accumulator(np.float64),
-            "PuppiMET_sumEt"  : column_accumulator(np.float64),
-            "RawMET_phi"      : column_accumulator(np.float64),
-            "RawMET_pt"       : column_accumulator(np.float64),
-            "RawMET_sumEt"    : column_accumulator(np.float64),
+            ## Jet and JetPFCands matching variables
+            **jetPFCandsMatchingDict,
 
-            "cutflow": processor.dict_accumulator(
-                OrderedDict(
-                    **{
-                        "all": value_accumulator(int),
-                        "trigger": value_accumulator(int),
-                    },
-                    **{
-                        METFilter: value_accumulator(int) for METFilter in MET_FILTERS
-                    }
-                    )
-                ),
+            ## Cutflow informations
+            **cutflowDict,
 
             })
 
@@ -125,16 +178,16 @@ class Preselection(processor.ProcessorABC):
         output = self.accumulator.identity()
 
         ## Event selection
-        output["cutflow"]["all"] += len(events)
+        output["cutflow"]["all"] += ak.sum(events.genWeight)
 
         # Highest efficiency HLT trigger
         events = events[events.HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60]
-        output["cutflow"]["trigger"] += len(events)
+        output["cutflow"]["trigger"] += ak.sum(events.genWeight)
 
         # MET filters
         for METFilter in MET_FILTERS:
             events = events[getattr(events, "Flag_"+METFilter)]
-            output["cutflow"][METFilter] += len(events)
+            output["cutflow"][METFilter] += ak.sum(events.genWeight)
 
         # Lepton veto
 
@@ -142,11 +195,11 @@ class Preselection(processor.ProcessorABC):
         ## Good object selection
         # Good Jet
         goodFatJets = obj.GoodFatJets(events)
-        goodFatJetPFCands = obj.GoodFatJetPFCands(events, goodFatJets)
+        goodFatJetPFCands = obj.GoodFatJetPFCands(events, goodFatJets, self.inputFileType)
 
         # Good Jet
         goodJets = obj.GoodJets(events)
-        goodJetPFCands = obj.GoodJetPFCands(events, goodJets)
+        goodJetPFCands = obj.GoodJetPFCands(events, goodJets, self.inputFileType)
         
 
         # Fat Jets
@@ -164,18 +217,17 @@ class Preselection(processor.ProcessorABC):
         output["FatJet_tau3"]      += processor.column_accumulator(np.array(ak.to_list(goodFatJets.tau3)     , dtype=object))
         output["FatJet_tau4"]      += processor.column_accumulator(np.array(ak.to_list(goodFatJets.tau4)     , dtype=object))
 
-        # Fat Jet PF candidates
-        output["nFatJetPFCands"]       += processor.column_accumulator(ak.to_numpy(ak.flatten(goodFatJetPFCands.n, axis=None)))
-        output["FatJetPFCands_jetIdx"] += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.jetIdx) , dtype=object))
-        output["FatJetPFCands_eta"]    += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.eta)    , dtype=object))
-        output["FatJetPFCands_mass"]   += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.mass)   , dtype=object))
-        output["FatJetPFCands_phi"]    += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.phi)    , dtype=object))
-        output["FatJetPFCands_pt"]     += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.pt)     , dtype=object))
-        output["FatJetPFCands_trkChi2"]+= processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.trkChi2), dtype=object))
-        output["FatJetPFCands_vtxChi2"]+= processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.vtxChi2), dtype=object))
-        output["FatJetPFCands_charge"] += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.charge) , dtype=object))
-        output["FatJetPFCands_pdgId"]  += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.pdgId)  , dtype=object))
-
+        # Fat Jet PF candidates - only in PFnano102X
+        if self.inputFileType == "PFnano102X":
+            output["nFatJetPFCands"]       += processor.column_accumulator(ak.to_numpy(ak.flatten(goodFatJetPFCands.n, axis=None)))
+            output["FatJetPFCands_eta"]    += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.eta)    , dtype=object))
+            output["FatJetPFCands_mass"]   += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.mass)   , dtype=object))
+            output["FatJetPFCands_phi"]    += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.phi)    , dtype=object))
+            output["FatJetPFCands_pt"]     += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.pt)     , dtype=object))
+            output["FatJetPFCands_trkChi2"]+= processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.trkChi2), dtype=object))
+            output["FatJetPFCands_vtxChi2"]+= processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.vtxChi2), dtype=object))
+            output["FatJetPFCands_charge"] += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.charge) , dtype=object))
+            output["FatJetPFCands_pdgId"]  += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.pdgId)  , dtype=object))
 
         # AK4 Jets
         output["nJet"] += processor.column_accumulator(ak.to_numpy(ak.flatten(goodJets.n, axis=None)))
@@ -189,7 +241,6 @@ class Preselection(processor.ProcessorABC):
 
         # AK4 Jet PF candidates
         output["nJetPFCands"]       += processor.column_accumulator(ak.to_numpy(ak.flatten(goodJetPFCands.n, axis=None)))
-        output["JetPFCands_jetIdx"] += processor.column_accumulator(np.array(ak.to_list(goodJetPFCands.jetIdx) , dtype=object))
         output["JetPFCands_eta"]    += processor.column_accumulator(np.array(ak.to_list(goodJetPFCands.eta)    , dtype=object))
         output["JetPFCands_mass"]   += processor.column_accumulator(np.array(ak.to_list(goodJetPFCands.mass)   , dtype=object))
         output["JetPFCands_phi"]    += processor.column_accumulator(np.array(ak.to_list(goodJetPFCands.phi)    , dtype=object))
@@ -199,6 +250,17 @@ class Preselection(processor.ProcessorABC):
         output["JetPFCands_charge"] += processor.column_accumulator(np.array(ak.to_list(goodJetPFCands.charge) , dtype=object))
         output["JetPFCands_pdgId"]  += processor.column_accumulator(np.array(ak.to_list(goodJetPFCands.pdgId)  , dtype=object))
 
+        # Jet PF candidates variables for matching with AK4/AK8 jet
+        if self.inputFileType == "PFnano102X":
+            output["JetPFCands_jetIdx"]    += processor.column_accumulator(np.array(ak.to_list(goodJetPFCands.jetIdx)    , dtype=object))
+            output["FatJetPFCands_jetIdx"] += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.jetIdx) , dtype=object))
+        elif self.inputFileType == "PFnano106X":
+            output["nJetPFCandsAK4"] += processor.column_accumulator(np.array(goodJetPFCands.nAK4))
+            output["JetPFCandsAK4_jetIdx"]  += processor.column_accumulator(np.array(ak.to_list(goodJetPFCands.jetIdx)    , dtype=object))
+            output["JetPFCandsAK4_candIdx"] += processor.column_accumulator(np.array(ak.to_list(goodJetPFCands.candIdx)   , dtype=object))
+            output["nJetPFCandsAK8"] += processor.column_accumulator(np.array(goodFatJetPFCands.nAK8))
+            output["JetPFCandsAK8_jetIdx"]  += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.jetIdx) , dtype=object))
+            output["JetPFCandsAK8_candIdx"] += processor.column_accumulator(np.array(ak.to_list(goodFatJetPFCands.candIdx), dtype=object))
 
         # MET
         output["MET_phi"]          += processor.column_accumulator(ak.to_numpy(ak.flatten(events.MET_phi         , axis=None)))
@@ -212,6 +274,7 @@ class Preselection(processor.ProcessorABC):
         output["RawMET_pt"]        += processor.column_accumulator(ak.to_numpy(ak.flatten(events.MET_pt          , axis=None)))
         output["RawMET_sumEt"]     += processor.column_accumulator(ak.to_numpy(ak.flatten(events.MET_sumEt       , axis=None)))
 
+        output["genWeight"]        += processor.column_accumulator(ak.to_numpy(ak.flatten(events.genWeight       , axis=None)))
 
         return output
 
