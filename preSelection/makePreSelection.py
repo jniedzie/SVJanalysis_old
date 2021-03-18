@@ -138,7 +138,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-n", "--nworkers",
         help="Number of worker nodes",
-        nargs="?", const=4, type=int
+        nargs="?", default=4, type=int
         )
     
     args = parser.parse_args()
