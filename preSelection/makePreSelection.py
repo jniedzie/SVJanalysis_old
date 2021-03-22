@@ -105,7 +105,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-i", "--inputFiles",
-        help="Input ROOT files to skim. Format: Comma separated list of files"\
+        help="Input ROOT files to skim. Format: Comma separated list of files "\
              +"or txt file with list of file (1 file name per line)",
         # Example for the format:
         # Ex1: file1.root,file2.root
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         )
     parser.add_argument(
         "-o", "--output",
-        help="Output ROOT file. Make sure output directory exists!",
+        help="Output ROOT file",
         required=True
         )
     parser.add_argument(
@@ -127,7 +127,7 @@ if __name__ == "__main__":
         )
     parser.add_argument(
         "-c", "--chunksize",
-        help="Size of the data chunks",
+        help="Size of the data chunks (default=100000)",
         default=100000, type=int
         )
     parser.add_argument(
@@ -137,8 +137,8 @@ if __name__ == "__main__":
         )
     parser.add_argument(
         "-n", "--nworkers",
-        help="Number of worker nodes",
-        nargs="?", default=4, type=int
+        help="Number of worker nodes (default=4)",
+        default=4, type=int
         )
     
     args = parser.parse_args()
