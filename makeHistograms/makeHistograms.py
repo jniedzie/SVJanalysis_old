@@ -95,7 +95,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-m", "--mode",
         help="Mode in which to open the output ROOT file. Choices: recreate (default), update",
-        choices=["recreate", "update"], nargs="?", default="recreate"
+        choices=["recreate", "update"], default="recreate"
         )
     parser.add_argument(
         "-b", "--binning",
@@ -119,13 +119,13 @@ if __name__ == "__main__":
         )
     parser.add_argument(
         "-o", "--outputDirectory",
-        help="Path to the directory where to recreate/update ROOT file",
-        nargs="?", default="./"
+        help="Path to the directory where to recreate/update ROOT file (default=./)",
+        default="./"
         )
     parser.add_argument(
         "-l", "--lumi",
-        help="Total luminosity for normalization of the histograms",
-        nargs="?", default=59725.0,   # 21071.0+38654.0
+        help="Total luminosity for normalization of the histograms (default=59725 pb-1)",
+        default=59725.0,   # 21071.0+38654.0
         )
 
     args = parser.parse_args()
