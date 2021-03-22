@@ -15,7 +15,6 @@ MET_FILTERS = (
     "EcalDeadCellTriggerPrimitiveFilter",
     "BadPFMuonFilter",
     "eeBadScFilter",
-    "ecalBadCalibFilterV2",
     )
 
 

@@ -1,6 +1,6 @@
 binning=binning.json
 samplesDescription=samples.json
-outputDir=/eos/user/f/fleble/SVJ/t_channel/histograms/
+outputDir=./
 
 processor=Histogram1
 

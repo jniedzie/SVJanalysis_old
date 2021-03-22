@@ -161,6 +161,10 @@ class Histogram1(processor.ProcessorABC):
         genWeight_ge1J_tau21_bc = genWeight_J[mask_ge1J_tau21_bc]
         genWeight_ge1J_tau32_bc = genWeight_J[mask_ge1J_tau32_bc]
 
+        sumGenWeight = ak.sum(genWeight)
+        sumGenWeight_ge1J = ak.sum(genWeight_ge1J)
+        sumGenWeight_ge1j = ak.sum(genWeight_ge1j)
+
 
         ## Fill histograms
         fillHistogram(output, "nFatJet", nFatJet, genWeight)
@@ -195,41 +199,26 @@ class Histogram1(processor.ProcessorABC):
 
 
         ## Cutflow information for histogram normalization
-        sumGenWeight = ak.sum(genWeight)
-        sumGenWeight_ge1J = ak.sum(genWeight_ge1J)
-        sumGenWeight_ge1j = ak.sum(genWeight_ge1j)
 
-        output["cutflow"]["all"]  += sumGenWeight
-        output["cutflow"]["ge1J"] += sumGenWeight_ge1J
-        output["cutflow"]["ge1j"] += sumGenWeight_ge1j
+        # List of variables depending on cuts/weights
+        variables_noCut = [
+            "all",
+            "nFatJet", "FatJet_pt", "FatJet_eta", "FatJet_mass", "FatJet_msoftdrop",
+            "FatJet_tau1", "FatJet_tau2", "FatJet_tau3",
+            "nJet", "Jet_pt", "Jet_eta", "Jet_mass",
+            "MET_pt", "HT_AK8", "ST_AK8", "HT_AK4", "ST_AK4"
+        ]
+        variables_ge1j = ["ge1j", "METrHT_AK4", "METrST_AK4"]
+        variables_ge1J = ["ge1J", "FatJet_tau21", "FatJet_tau32", "METrHT_AK8", "METrST_AK8"]
 
-        output["cutflow"]["nFatJet"]          += sumGenWeight
-        output["cutflow"]["FatJet_pt"]        += sumGenWeight
-        output["cutflow"]["FatJet_eta"]       += sumGenWeight
-        output["cutflow"]["FatJet_mass"]      += sumGenWeight
-        output["cutflow"]["FatJet_msoftdrop"] += sumGenWeight
-        output["cutflow"]["FatJet_tau1"]      += sumGenWeight
-        output["cutflow"]["FatJet_tau2"]      += sumGenWeight
-        output["cutflow"]["FatJet_tau3"]      += sumGenWeight
-        output["cutflow"]["nJet"]             += sumGenWeight
-        output["cutflow"]["Jet_pt"]           += sumGenWeight
-        output["cutflow"]["Jet_eta"]          += sumGenWeight
-        output["cutflow"]["Jet_mass"]         += sumGenWeight
+        for variable in variables_noCut:
+            output["cutflow"][variable] += sumGenWeight
 
-        output["cutflow"]["MET_pt"] += sumGenWeight
-        output["cutflow"]["HT_AK8"] += sumGenWeight
-        output["cutflow"]["ST_AK8"] += sumGenWeight
-        output["cutflow"]["HT_AK4"] += sumGenWeight
-        output["cutflow"]["ST_AK4"] += sumGenWeight
+        for variable in variables_ge1j:
+            output["cutflow"][variable] += sumGenWeight_ge1j
 
-        output["cutflow"]["FatJet_tau21"] += sumGenWeight_ge1J  # neglecting the very few cases where tau1 = 0
-        output["cutflow"]["FatJet_tau32"] += sumGenWeight_ge1J  # neglecting the very few cases where tau2 = 0
-
-        output["cutflow"]["METrHT_AK8"] += sumGenWeight_ge1J
-        output["cutflow"]["METrST_AK8"] += sumGenWeight_ge1J
-        output["cutflow"]["METrHT_AK4"] += sumGenWeight_ge1j
-        output["cutflow"]["METrST_AK4"] += sumGenWeight_ge1j
-
+        for variable in variables_ge1J:
+            output["cutflow"][variable] += sumGenWeight_ge1J
 
         return output
 

@@ -14,11 +14,68 @@ import utilities as utl
 import processorHistogram as procHist
 
 
+def print_cutflow(cutflow, histogramKeys):
+    """
+    Print cut efficiencies for cuts needed for defining some of the variables.
+    E.g. for deltaR between leading 2 jets, events needs to have at least 2 jets.
+    """
+
+    cutflowKeys = []
+    for key in cutflow.keys():
+        if key == "all": continue
+        if key not in histogramKeys:
+            cutflowKeys.append(key)
+
+    lenCol1 = max([ len(k) for k in cutflowKeys ])
+
+    print("\nCutflow:")
+    print("\tCut" + (lenCol1-3)*" " + "  Abs. eff. [%]")
+    nAll = cutflow["all"]
+    for cut in cutflowKeys:
+        print("\t%s%s  %.2f" %(cut, (lenCol1-len(cut))*" ", 100*cutflow[cut]/nAll))
+
+    return
+
+
+def write_ROOT_file(accumulator, ROOTfileName, mode, cutflow, lumi, xSection):
+    """
+    Write histograms, stored in a coffea accumulator, to a ROOT file.
+    Cut efficiencies for the variables histogrammed (cutflow), luminosity (lumi)
+    and cross-section (xSection) are needed to normalize the histograms.
+    """
+
+    # Need to use uproot3 because it is not implemented yet in uproot4 (Feb. 2021)
+    print("\nWill %s ROOT file %s.\n" %(mode.lower(), ROOTfileName))
+
+    writtenHists = []
+    with getattr(uproot3, mode)(ROOTfileName) as f:    # Create/update output file
+        for variable, hist in accumulator.items():
+            if isinstance(hist, cf.hist.Hist):
+                if variable not in cutflow.keys():
+                    print("WARNING: Sum of gen weights not available for %s." %variable)
+                    print("         Histogram cannot to be written into ROOT file.")
+                    print("         Check processor %s." %processor)
+                else:
+                    if cutflow[variable] > 0.:
+                        hist.scale(lumi * xSection / cutflow[variable])
+                        f[variable] = cf.hist.export1d(hist)
+                        writtenHists.append(variable)
+                    else:
+                        print("WARNING: Sum of gen weights is 0 for %s." %variable)
+                        print("         Histogram cannot to be written into ROOT file.")
+
+    print("Histograms written to output ROOT file:")
+    for writtenHist in writtenHists:
+        print("\t%s" %writtenHist)
+
+    return
+
+
 def main(mode, binning, sample, processor, outputDirectory, lumi):
 
     ## Get sample name and cross-section
     sampleName = sample["name"]
-    XSection = sample["XSection"]
+    xSection = sample["XSection"]
 
 
     ## Fileset
@@ -37,51 +94,14 @@ def main(mode, binning, sample, processor, outputDirectory, lumi):
     )
 
 
-    ## Get cutflow information
-    cutflow = output.pop("cutflow")
-
-
     ## Print out cutflow
-    cutflowKeys = []
-    for key in cutflow.keys():
-        if key == "all": continue
-        if key not in output.keys():
-            cutflowKeys.append(key)
-
-    lenCol1 = max([ len(k) for k in cutflowKeys ])
-
-    print("\nCutflow:")
-    print("\tCut" + (lenCol1-3)*" " + "  Abs. eff. [%]")
-    nAll = cutflow["all"]
-    for cut in cutflowKeys:
-        print("\t%s%s  %.2f" %(cut, (lenCol1-len(cut))*" ", 100*cutflow[cut]/nAll))
+    cutflow = output.pop("cutflow")
+    print_cutflow(cutflow, output.keys())
 
 
     ## Save histograms to ROOT file
-    # Need to use uproot3 because it is not implemented yet in uproot4 (Feb. 2021)
     ROOTfileName = outputDirectory + sampleName + ".root"
-    print("\nWill %s ROOT file %s.\n" %(mode.lower(), ROOTfileName))
-
-    writtenHists = []
-    with getattr(uproot3, mode)(ROOTfileName) as f:    # Create/update output file
-        for variable, hist in output.items():
-            if isinstance(hist, cf.hist.Hist):
-                if variable not in cutflow.keys():
-                    print("WARNING: Sum of gen weights not available for %s." %variable)
-                    print("         Histogram cannot to be written into ROOT file.")
-                    print("         Check processor %s." %processor)
-                else:
-                    if cutflow[variable] > 0.:
-                        hist.scale(lumi * XSection / cutflow[variable])
-                        f[variable] = cf.hist.export1d(hist)
-                        writtenHists.append(variable)
-                    else:
-                        print("WARNING: Sum of gen weights is 0 for %s." %variable)
-                        print("         Histogram cannot to be written into ROOT file.")
-
-    print("Histograms written to output ROOT file:")
-    for writtenHist in writtenHists:
-        print("\t%s" %writtenHist)
+    write_ROOT_file(output, ROOTfileName, mode, cutflow, lumi, xSection)
 
     return
 
