@@ -45,17 +45,17 @@ class Histogram1(processor.ProcessorABC):
             "Jet_mass"         : r"Jet mass [GeV]",
 
             "MET_pt"           : r"MET [GeV]",
-	    "HT_AK8"           : r"H_{T}^{AK8}",
-	    "ST_AK8"           : r"S_{T}^{AK8}",
-	    "HT_AK4"           : r"H_{T}^{AK4}",
-	    "ST_AK4"           : r"S_{T}^{AK4}",
+            "HT_AK8"           : r"H_{T}^{AK8}",
+            "ST_AK8"           : r"S_{T}^{AK8}",
+            "HT_AK4"           : r"H_{T}^{AK4}",
+            "ST_AK4"           : r"S_{T}^{AK4}",
 
             "FatJet_tau21"     : r"FatJet $\tau_{21}$",
             "FatJet_tau32"     : r"FatJet $\tau_{32}$",
-	    "METrHT_AK8"       : r"MET/H_{T}^{AK8}",
-	    "METrST_AK8"       : r"MET/H_{T}^{AK8}",
-	    "METrHT_AK4"       : r"MET/H_{T}^{AK4}",
-	    "METrST_AK4"       : r"MET/H_{T}^{AK4}",
+            "METrHT_AK8"       : r"MET/H_{T}^{AK8}",
+            "METrST_AK8"       : r"MET/H_{T}^{AK8}",
+            "METrHT_AK4"       : r"MET/H_{T}^{AK4}",
+            "METrST_AK4"       : r"MET/H_{T}^{AK4}",
         }
 
         
