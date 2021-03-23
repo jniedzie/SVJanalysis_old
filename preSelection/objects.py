@@ -1,6 +1,69 @@
 import numpy as np
 import awkward as ak
 
+    
+## Functions needed to take care of the reindixing of jets
+## e.g. modification of *_jetIdx variables due to good jets selection
+
+def true_indices(akArray):
+    """
+    Input: ak array with boolean values corresponding with structure of a branch of an Events tree
+           or an iterable with similar jagged structure.
+           e.g. [ [True, False, True], [True], [], [False, True] ]
+    Return a jagged list with indices of the jagged array that are true.
+           e.g. [ [0, 3], [0], [], [1] ]
+    """
+
+    trueIndices = [ [ idx for idx, x in enumerate(y) if x ] for y in akArray ]
+    return trueIndices
+
+        
+def is_in(array1, array2):
+    """
+    Input: 2 jagged arrays
+    Return a boolean jagged array
+    e.g. array1 = [ [0, 1, 1, 2, 2, 3], [0, 0, 1], [0, 1, 1, 2] ]
+         array2 = [ [0, 3], [], [0, 2] ]
+         return [ [True, False, False, False, False, True], [False, False, False] [True, False, False, True]]
+    """
+
+    akArrayIsIn = ak.Array([ [ True if x in y2 else False for x in y1 ] for y1, y2 in zip(array1, array2) ])
+    return akArrayIsIn
+
+
+def discrete_function(X, Y, x):
+    """
+    Input X = (x1, x2, ..., xn)
+          Y = (y1, y2, ..., yn)
+          x in X
+    Discrete function f(xi) = yi 
+    Return f(x)
+    """
+
+    X = list(X)
+    Y = list(Y)
+    idx = X.index(x)
+    return Y[idx]
+
+
+def make_new_jet_indices(filter_, jetIndices):
+    """
+    Input:
+      * filter_   : jagged array with boolean values corresponding the selected jets
+      * jetIndices: jagged array with jet indices
+    Return jagged array of jet indices for selected jets
+    """
+
+    newJetIndices = []
+    for filterRow, jetIndicesRow in zip(filter_, jetIndices):
+        filterRow = ak.to_numpy(filterRow)
+        X = [ idx for idx, x in enumerate(filterRow) ]
+        Y = np.cumsum(filterRow)-1
+        newJetIndicesRow = [ discrete_function(X, Y, x) for x in jetIndicesRow ]
+        newJetIndices.append(newJetIndicesRow)
+    return ak.Array(newJetIndices)
+
+
 
 class GoodFatJets():
     """Make collection of good AK8 jets."""
@@ -33,8 +96,15 @@ class GoodFatJetPFCands():
 
         # PF candidates for good AK8 jets only
         if inputFileType == "PFnano102X":
-            self.filter_ = (events.FatJetPFCands_jetIdx < goodFatJets.n)
-            self.jetIdx  = events.FatJetPFCands_jetIdx [self.filter_]
+            # Indices of the good jets
+            goodJetIndices = true_indices(goodJets.filter_)
+            # Boolean ak array to select only PF candidates in good jets
+            self.filter_ = is_in(events.JetPFCands_jetIdx, goodJetIndices)
+            # Get jet indices of the PF candidates in good jets
+            PFCands_jetIdx = events.JetPFCands_jetIdx[self.filter_]
+            # Some good jets have been removed, update the indices to good jets
+            self.jetIdx = make_new_jet_indices(goodJets.filter_, PFCands_jetIdx)
+
             self.eta     = events.FatJetPFCands_eta    [self.filter_]
             self.mass    = events.FatJetPFCands_mass   [self.filter_]
             self.phi     = events.FatJetPFCands_phi    [self.filter_]
@@ -45,10 +115,17 @@ class GoodFatJetPFCands():
             self.pdgId   = events.FatJetPFCands_pdgId  [self.filter_]
 
         elif inputFileType == "PFnano106X":
-            JetPFCandsAK8IndicesToKeep = (events.JetPFCandsAK8_jetIdx < goodFatJets.n)
-            self.filter_ = events.JetPFCandsAK8_candIdx[JetPFCandsAK8IndicesToKeep]
-            self.jetIdx  = events.JetPFCandsAK8_jetIdx[JetPFCandsAK8IndicesToKeep]
-            self.candIdx = self.filter_
+            # Indices of the good fat jets
+            goodJetIndices = true_indices(goodFatJets.filter_)
+            # Boolean ak array to select only PF candidates in good fat jets
+            self.filter_ = is_in(events.JetPFCandsAK8_jetIdx, goodJetIndices)
+            # Get jet indices of the PF candidates in good fat jets
+            PFCands_jetIdx = events.JetPFCandsAK8_jetIdx[self.filter_]
+            # Some fat jets may have been removed, update the indices to good jets
+            self.jetIdx = make_new_jet_indices(goodFatJets.filter_, PFCands_jetIdx)
+            # Get PF candidates indices in good fat jets
+            self.candIdx = events.JetPFCandsAK8_candIdx[self.filter_]
+            # Number of AK8 PF candidates
             self.nAK8 = ak.count(self.jetIdx, axis=1)
 
             # Cannot keep JetPFCands with index self.filter_ because some PF Cands not in self.filter_ may
@@ -93,8 +170,16 @@ class GoodJetPFCands():
 
         # PF candidates for good AK4 jets only
         if inputFileType == "PFnano102X":
-            self.filter_ = (events.JetPFCands_jetIdx < goodJets.n)
-            self.jetIdx  = events.JetPFCands_jetIdx [self.filter_]
+            # Indices of the good jets
+            goodJetIndices = true_indices(goodJets.filter_)
+            # Boolean ak array to select only PF candidates in good jets
+            self.filter_ = is_in(events.JetPFCands_jetIdx, goodJetIndices)
+            # Get jet indices of the PF candidates in good jets
+            PFCands_jetIdx = events.JetPFCands_jetIdx[self.filter_]
+            # Some jets may have been removed, update the indices to good jets
+            self.jetIdx = make_new_jet_indices(goodJets.filter_, PFCands_jetIdx)
+
+            # Get JetPFCands variables for PF candidates in good jets
             self.eta     = events.JetPFCands_eta    [self.filter_]
             self.mass    = events.JetPFCands_mass   [self.filter_]
             self.phi     = events.JetPFCands_phi    [self.filter_]
@@ -105,10 +190,17 @@ class GoodJetPFCands():
             self.pdgId   = events.JetPFCands_pdgId  [self.filter_]
 
         elif inputFileType == "PFnano106X":
-            JetPFCandsAK4IndicesToKeep = (events.JetPFCandsAK4_jetIdx < goodJets.n)
-            self.filter_ = events.JetPFCandsAK4_candIdx[JetPFCandsAK4IndicesToKeep]
-            self.jetIdx  = events.JetPFCandsAK4_jetIdx[JetPFCandsAK4IndicesToKeep]
-            self.candIdx = self.filter_
+            # Indices of the good jets
+            goodJetIndices = true_indices(goodJets.filter_)
+            # Boolean ak array to select only PF candidates in good jets
+            self.filter_ = is_in(events.JetPFCandsAK4_jetIdx, goodJetIndices)
+            # Get jet indices of the PF candidates in good jets
+            PFCands_jetIdx = events.JetPFCandsAK4_jetIdx[self.filter_]
+            # Some good jets have been removed, update the indices to good jets
+            self.jetIdx = make_new_jet_indices(goodJets.filter_, PFCands_jetIdx)
+            # Get PF candidates indices in good jets
+            self.candIdx = events.JetPFCandsAK4_candIdx[self.filter_]
+            # Number of AK4 PF candidates
             self.nAK4 = ak.count(self.jetIdx, axis=1)
 
             # Cannot keep JetPFCands with index self.filter_ because some PF Cands not in self.filter_ may
