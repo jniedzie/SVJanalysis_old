@@ -73,7 +73,7 @@ def make_branches(accumulator):
     return branches, branchesInit
 
 
-def write_ROOT_file(accumulator, outputFile, totalEfficiency):
+def write_root_file(accumulator, outputFile, totalEfficiency):
     """
     2 trees are written:
        * Events: standard NTuple events tree
@@ -122,7 +122,7 @@ def main(inputFiles, outputFile, fileType, chunksize, maxchunks, nworkers):
     totalEfficiency = print_cutflow(cutflow)
 
     ## Making output ROOT file
-    write_ROOT_file(output, outputFile, totalEfficiency)
+    write_root_file(output, outputFile, totalEfficiency)
 
 
 if __name__ == "__main__":

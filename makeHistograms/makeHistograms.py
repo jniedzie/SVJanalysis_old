@@ -37,7 +37,7 @@ def print_cutflow(cutflow, histogramKeys):
     return
 
 
-def write_ROOT_file(accumulator, ROOTfileName, mode, cutflow, lumi, xSection):
+def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection):
     """
     Write histograms, stored in a coffea accumulator, to a ROOT file.
     Cut efficiencies for the variables histogrammed (cutflow), luminosity (lumi)
@@ -45,10 +45,10 @@ def write_ROOT_file(accumulator, ROOTfileName, mode, cutflow, lumi, xSection):
     """
 
     # Need to use uproot3 because it is not implemented yet in uproot4 (Feb. 2021)
-    print("\nWill %s ROOT file %s.\n" %(mode.lower(), ROOTfileName))
+    print("\nWill %s ROOT file %s.\n" %(mode.lower(), rootFileName))
 
     writtenHists = []
-    with getattr(uproot3, mode)(ROOTfileName) as f:    # Create/update output file
+    with getattr(uproot3, mode)(rootFileName) as f:    # Create/update output file
         for variable, hist in accumulator.items():
             if isinstance(hist, cf.hist.Hist):
                 if variable not in cutflow.keys():
@@ -100,8 +100,8 @@ def main(mode, binning, sample, processor, outputDirectory, lumi):
 
 
     ## Save histograms to ROOT file
-    ROOTfileName = outputDirectory + sampleName + ".root"
-    write_ROOT_file(output, ROOTfileName, mode, cutflow, lumi, xSection)
+    rootFileName = outputDirectory + sampleName + ".root"
+    write_root_file(output, rootFileName, mode, cutflow, lumi, xSection)
 
     return
 
