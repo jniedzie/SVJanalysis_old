@@ -30,14 +30,14 @@ def print_cutflow(cutflow, histogramKeys):
 
     print("\nCutflow:")
     print("\tCut" + (lenCol1-3)*" " + "  Abs. eff. [%]")
-    nAll = cutflow["all"]
+    nAll = cutflow["noCut"]
     for cut in cutflowKeys:
         print("\t%s%s  %.2f" %(cut, (lenCol1-len(cut))*" ", 100*cutflow[cut]/nAll))
 
     return
 
 
-def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection):
+def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, processor):
     """
     Write histograms, stored in a coffea accumulator, to a ROOT file.
     Cut efficiencies for the variables histogrammed (cutflow), luminosity (lumi)
@@ -101,7 +101,7 @@ def main(mode, binning, sample, processor, outputDirectory, lumi):
 
     ## Save histograms to ROOT file
     rootFileName = outputDirectory + sampleName + ".root"
-    write_root_file(output, rootFileName, mode, cutflow, lumi, xSection)
+    write_root_file(output, rootFileName, mode, cutflow, lumi, xSection, processor)
 
     return
 
