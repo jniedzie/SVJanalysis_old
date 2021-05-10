@@ -7,8 +7,9 @@ import numpy as np
 import os
 import time
 import argparse
+from collections import OrderedDict
 
-from processorPreSelection import Preselection
+import processorPreSelection
 
 
 def print_cutflow(cutflow):
@@ -18,20 +19,30 @@ def print_cutflow(cutflow):
     """
 
     lenCol1 = max([ len(k) for k in cutflow.keys() ])
+    efficiencies = OrderedDict()
 
     print("\nCutflow:")
     print("\tCut" + (lenCol1-3)*" " + "  Abs. eff. [%]   Rel. eff. [%]")
-    nAll = cutflow["all"].value
+
+    nAll = cutflow["all"]
     for cut, n in cutflow.items():
         if cut != "all":
-            print("\t%s%s  %.2f           %.2f" %(cut, (lenCol1-len(cut))*" ", 100*n.value/nAll, 100*n.value/nPreviousCut))
-        nPreviousCut = n.value
-    totalEfficiency = n.value/nAll
+            absoluteEfficiency = 100*n/nAll
+            if nPreviousCut > 0.:
+                relativeEfficiency = 100*n/nPreviousCut
+            else:
+                relativeEfficiency = np.nan
+            spaces = (lenCol1-len(cut)+(absoluteEfficiency<10))*" "
+            print("\t%s%s  %.2f           %.2f" %(cut, spaces, absoluteEfficiency, relativeEfficiency))
+            efficiencies[cut] = absoluteEfficiency/100
+        nPreviousCut = n
+    
+    efficiencies["totalEfficiency"] = absoluteEfficiency
+    
+    return efficiencies
 
-    return totalEfficiency
 
-
-def make_branches(accumulator):
+def make_events_branches(accumulator, debug):
     """Make branches for Events tree."""
 
     branches = {}
@@ -47,6 +58,8 @@ def make_branches(accumulator):
     # Making branches
     # Need to use ak0 because it is not yet implemented in uproot4 i.e. ak1 (Feb. 2021)
     for k, v in accumulator.items():
+        if debug:
+            print("%s: %s" %(k, ak.type(ak.Array(v.value))))
         if not k.startswith("n"):
             nKey = "n"+str(k.split("_")[0])
             if nKey in lenKeys:
@@ -73,7 +86,20 @@ def make_branches(accumulator):
     return branches, branchesInit
 
 
-def write_root_file(accumulator, outputFile, totalEfficiency):
+def make_efficiencies_branches(efficiencies):
+    """Make branches for Efficiencies tree."""
+
+    branches = {}
+    branchesInit = {}
+
+    for k, v in efficiencies.items():
+        branchesInit[k] = np.dtype("f8")
+        branches[k] = np.array([v])
+
+    return branches, branchesInit
+
+
+def write_root_file(accumulator, outputFile, efficiencies, debug):
     """
     2 trees are written:
        * Events: standard NTuple events tree
@@ -81,24 +107,32 @@ def write_root_file(accumulator, outputFile, totalEfficiency):
     """
 
     # Making branches to write to Events tree
-    branches, branchesInit = make_branches(accumulator)
+    branchesEvents, branchesInitEvents = make_events_branches(accumulator, debug)
+    branchesEfficiencies, branchesInitEfficiencies = make_efficiencies_branches(efficiencies)
+
+    if debug:
+        print("\nEvents branches keys:")
+        print(branchesEvents.keys())
+        print("\nEvents branchesInit keys:")
+        print(branchesInitEvents.keys())
+
 
     # Save branches to ROOT file
     # Need to use uproot3 because it is not implemented yet in uproot4 (Feb. 2021)
     with uproot3.recreate(outputFile) as f:
-        f["Events"] = uproot3.newtree(branchesInit)
-        f["Events"].extend(branches)
+        f["Events"] = uproot3.newtree(branchesInitEvents)
+        f["Events"].extend(branchesEvents)
         print("\nTTree Events saved to output file %s" %outputFile)
 
         # Save cut efficiency to ROOT file
-        f["Cuts"] = uproot3.newtree({"Efficiency": np.dtype("f8")})
-        f["Cuts"].extend({"Efficiency": np.array([totalEfficiency])})
-        print("TTree Cuts saved to output file %s" %outputFile)
+        f["Efficiencies"] = uproot3.newtree(branchesInitEfficiencies)
+        f["Efficiencies"].extend(branchesEfficiencies)
+        print("TTree Efficiencies saved to output file %s" %outputFile)
 
     return
 
 
-def main(inputFiles, outputFile, fileType, chunksize, maxchunks, nworkers):
+def main(inputFiles, outputFile, fileType, processorName, chunksize, maxchunks, nworkers, debug):
 
     print("Input files:")
     print(inputFiles)
@@ -110,7 +144,7 @@ def main(inputFiles, outputFile, fileType, chunksize, maxchunks, nworkers):
     output = processor.run_uproot_job(
         fileset,
         treename = "Events",
-        processor_instance = Preselection(fileType),
+        processor_instance = getattr(processorPreSelection, processorName)(fileType),
         executor = processor.iterative_executor,
         executor_args = {"schema": BaseSchema, "workers": nworkers},
         chunksize = chunksize,
@@ -119,10 +153,13 @@ def main(inputFiles, outputFile, fileType, chunksize, maxchunks, nworkers):
 
     ## Print out cutflow
     cutflow = output.pop("cutflow")
-    totalEfficiency = print_cutflow(cutflow)
+    efficiencies = print_cutflow(cutflow)
 
     ## Making output ROOT file
-    write_root_file(output, outputFile, totalEfficiency)
+    if efficiencies["totalEfficiency"] == 0.:
+        print("\nWARNING: 0 event passed pre-selections. Will not write an empty ROOT file.")
+    else:
+        write_root_file(output, outputFile, efficiencies, debug)
 
 
 if __name__ == "__main__":
@@ -154,6 +191,11 @@ if __name__ == "__main__":
         required=True
         )
     parser.add_argument(
+        "-p", "--processor",
+        help="Coffea processor to be used, as defined in processorPreSelection.py",
+        required=True
+        )
+    parser.add_argument(
         "-c", "--chunksize",
         help="Size of the data chunks (default=100000)",
         default=100000, type=int
@@ -168,6 +210,12 @@ if __name__ == "__main__":
         help="Number of worker nodes (default=4)",
         default=4, type=int
         )
+    parser.add_argument(
+        "-debug", "--debug",
+        help="Debug mode",
+        action="store_true",
+        )
+    
     
     args = parser.parse_args()
 
@@ -190,10 +238,15 @@ if __name__ == "__main__":
         with open (args.inputFiles, "r") as txtfile:
             inputFiles = txtfile.readlines()
         inputFiles = [ x.replace("\n", "") for x in inputFiles ]
+        inputFiles = [ x for x in inputFiles if x.endswith(".root") ]
 
+    if args.debug:
+        debug = True
+    else:
+        debug = False
 
     ## Make pre-selection
-    main(inputFiles, args.output, args.fileType, args.chunksize, args.maxchunks, args.nworkers)
+    main(inputFiles, args.output, args.fileType, args.processor, args.chunksize, args.maxchunks, args.nworkers, debug)
 
 
     elapsed = time.time() - tstart
