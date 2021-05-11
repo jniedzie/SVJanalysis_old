@@ -22,7 +22,7 @@ def print_cutflow(cutflow, histogramKeys):
 
     cutflowKeys = []
     for key in cutflow.keys():
-        if key == "all": continue
+        if key == "noCut": continue
         if key not in histogramKeys:
             cutflowKeys.append(key)
 
@@ -45,7 +45,7 @@ def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, pr
     """
 
     # Need to use uproot3 because it is not implemented yet in uproot4 (Feb. 2021)
-    print("\nWill %s ROOT file %s.\n" %(mode.lower(), rootFileName))
+    print("\nWill %s ROOT file %s\n" %(mode.lower(), rootFileName))
 
     writtenHists = []
     with getattr(uproot3, mode)(rootFileName) as f:    # Create/update output file
@@ -71,7 +71,7 @@ def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, pr
     return
 
 
-def main(mode, binning, sample, processor, outputDirectory, lumi):
+def main(mode, binning, sample, fileType, processor, outputDirectory, lumi):
 
     ## Get sample name and cross-section
     sampleName = sample["name"]
@@ -86,7 +86,7 @@ def main(mode, binning, sample, processor, outputDirectory, lumi):
     output = cf.processor.run_uproot_job(
         fileset,
         treename = "Events",
-        processor_instance = getattr(procHist, processor)(binning),
+        processor_instance = getattr(procHist, processor)(binning, fileType),
         executor = cf.processor.iterative_executor,
         executor_args = {"schema": cf.nanoevents.BaseSchema, "workers": 4},
         chunksize = 100000,
@@ -133,6 +133,11 @@ if __name__ == "__main__":
         required=True
         )
     parser.add_argument(
+        "-t", "--fileType",
+        help="Input file type. If not given, then the tyoe will be infered. Choices = PFnano102X, PFnano106",
+        choices=["PFnano102X", "PFnano106X"],
+        )
+    parser.add_argument(
         "-p", "--processor",
         help="Coffea processor to be used, as defined in processorHistogram.py",
         required=True
@@ -175,8 +180,27 @@ if __name__ == "__main__":
         if "name" not in sample.keys():
             sample["name"] = sampleName
 
-        # and make histograms
-        main(args.mode, binning, sample, args.processor, outputDirectory, float(args.lumi))
+        # Get / infer file type
+        if not args.fileType:
+            # Open 1st file and check some branches to infer the type
+            file_ = uproot3.open(sample["fileset"][0])
+            events = file_["Events"]  # Assuming the events TTree is called Events
+            branches = [ branch.decode("utf-8") for branch in events.keys() ]
+
+            if "JetPFCandsAK4_jetIdx" in branches:
+                fileType = "PFnano106X"
+            elif "JetPFCands_jetIdx" in branches:
+                fileType = "PFnano102X"
+            else:
+                print("ERROR: file type cannot be inferred!")
+                sys.exit()
+            print("Inferred file type: %s" %fileType)
+
+        else:
+            fileType = args.fileType
+
+        # Make histograms
+        main(args.mode, binning, sample, fileType, args.processor, outputDirectory, float(args.lumi))
 
 
     elapsed = time.time() - tstart
