@@ -38,7 +38,7 @@ submit_job() {
 
   echo "Submitting job from file ${slurmjob_dir}/${slurmjob_file}..."
   cd ${slurmjob_dir}
-  #sbatch ${slurmjob_file}
+  sbatch ${slurmjob_file}
   cd -
 
 }
