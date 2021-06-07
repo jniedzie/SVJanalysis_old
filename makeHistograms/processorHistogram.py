@@ -16,36 +16,37 @@ sys.path.append("../pythonUtils/")
 import utilities as utl
 
 
-def get_binning(variable, binning):
+def divide_ak_arrays(akArray1, akArray2, divisionByZeroValue=1.):
     """
-    Return binning for variable in 1st argument providing the binning information in 2nd argument.
-    binning = {
-        "noregex": {
-            "j1j2_mass"         :  [500  ,  0   , 5000 ],
-        },
-        "regex": {
-            "n(Fat)?Jet"        :  [20   ,  0   , 20   ],
-        }
-    }
+    Input: 2 ak arrays with floatting point values having the same jagged structure.
+    Return a jagged list having same jagged structure corresponding to
+           akArray1 / akArray2
+           where the division by 0 is replaced by divisionByZeroValue
+           e.g. akArray1 = [ [0, 3], [5], [2] ] akArray2 = [ [3, 3], [0], [1] ]
+                division = [ [0, 1], [1], [0.5] ]
     """
 
-    # List of regexes for binning definition
-    regexes = list(binning["regex"].keys())
+    isNotZero = (akArray2!=0.)
+    if (not ak.all(isNotZero)):
+        print("The following warning about true_divide can be safely ignored.")
 
-    if variable not in binning["noregex"]:
-        indices = utl.inregex(variable, regexes)
-        if len(indices) == 0:
-            print("ERROR: Binning of %s is not defined." %variable)
-            sys.exit()
-        elif len(indices) > 1:
-            print("ERROR: %s matches several regexes. Binning cannot be defined." %variable)
-            sys.exit()
-        else: 
-            binning_ = binning["regex"][regexes[indices[0]]]
+    rawDivision = akArray1/akArray2
+    division = ak.where(isNotZero, rawDivision, divisionByZeroValue*ak.ones_like(akArray1))
+
+    # This implementation seems slower:
+    #division = ak.Array([ [ x1/x2 if x2 != 0. else divisionByZeroValue for x1, x2 in zip(y1, y2) ] for y1, y2 in zip(akArray1, akArray2) ])
+
+    return division
+
+
+
+def get_from_events(events, branchName):
+    """Return the branch from the events TTree if it exists, else return None."""
+
+    if branchName in events.fields:
+        return events[branchName]
     else:
-        binning_ = binning["noregex"][variable]
-
-    return binning_
+        return None
 
 
 def make_PtEtaPhiMLorentzVector(pt, eta, phi, mass):
@@ -65,43 +66,141 @@ def make_PtEtaPhiMLorentzVector(pt, eta, phi, mass):
 
 
 
-def fillHistogram(output, variable, axis, weight):
+def fill_histogram(output, variable, axis, weight):
     """Fill histogram if the variable has been defined."""
 
+    type1 = str(ak.type(axis))
+    type2 = str(ak.type(weight))
+    type1 = utl.list2str(type1.split(" * ")[:-1], " * ")
+    type2 = utl.list2str(type2.split(" * ")[:-1], " * ")
     if variable in output.keys():
-        output[variable].fill(axis=axis, weight=weight)
+        if type1 == type2:
+            output[variable].fill(axis=axis, weight=weight)
+        else:
+            print("ERROR: Array and weight for variable %s have different sizes:" %variable)
+            print("array  size: %s" %(type1))
+            print("weight size: %s" %(type2))
+            sys.exit()
     else:
         pass
         # A warning has been sent earlier when defining coffea histograms
 
 
-def check_dict_keys(dict1, dict2, dict1Name, dict2Name):
+def make_variables_names(variablesDescriptions):
+    """
+    Make variables based on the following description from a collection of templates and list of
+    params to be replaced by a given value:
+    e.g. "variablesDescriptions = [ ( "{jet}Jet_n",  [ {"jet": "ak4"}, {"jet": "ak8"} ] ),
+                                      "{jet}Jet_pt", [ {"jet": "ak4"}, {"jet": "ak8"} ] ),
+                                  ]
+
+    """
+
+    variables = []
+
+    for entry in variablesDescriptions:
+        variableTemplate = entry[0]
+        listOfParamsDict = entry[1]
+        for paramsDict in listOfParamsDict:
+            var = variableTemplate
+            for k, v in paramsDict.items():
+                var = var.replace("{"+k+"}", v)
+            variables.append(var)
+
+    return variables
+
+
+
+def get_binning(variable, binning):
+    """
+    Return binning for variable in 1st argument providing the binning information in 2nd argument.
+    binning = {
+        "noregex": {
+            "ak8J1_ak8J2_mass"  :  [500  ,  0   , 5000 ],
+        },
+        "regex": {
+            "n(Ak8)?Jet"        :  [20   ,  0   , 20   ],
+        }
+    }
+    """
+
+    # List of regexes for binning definition
+    regexes = list(binning["regex"].keys())
+
+    if variable not in binning["noregex"]:
+        indices = utl.inregex(variable, regexes)
+        if len(indices) == 0:
+            print("ERROR: Binning of %s is not defined." %variable)
+            sys.exit()
+        elif len(indices) > 1:
+            print("ERROR: %s matches several regexes. Binning cannot be defined." %variable)
+            print("regexes matched:")
+            for idx in indices: print("\t%s" %(regexes[idx]))
+            sys.exit()
+        else: 
+            binning_ = binning["regex"][regexes[indices[0]]]
+    else:
+        binning_ = binning["noregex"][variable]
+
+    return binning_
+
+
+
+def check_dict_keys(dict1, dict2, dict1Name, dict2Name, errorKeysDict1NotInKeysDict2=True, errorKeysDict2NotInKeysDict1=True):
     """Check if dict1 and dict2 have the same keys. Interrupt program if not the case."""
 
-    if dict1.keys() != dict2.keys():
-        if len(list(dict1.keys())) > len(list(dict2.keys())):
-            print("ERROR: Some %s have been defined but do not have a defined %s" %(dict1Name, dict2Name))
-        else:
-            print("ERROR: Some %s have a defined %s but have not been defined" %(dict1Name, dict2Name))
-        print("Defined %s:" %dict1Name)
-        print(sorted(list(dict1.keys())))
-        print("Defined %s:" %dict2Name)
-        print(sorted(list(dict2.keys())))
-        sys.exit()
+    if isinstance(dict1, list):
+        dict1 = { k: "" for k in dict1 }
+    if isinstance(dict2, list):
+        dict1 = { k: "" for k in dict2 }
 
-    return
+    if errorKeysDict1NotInKeysDict2:
+        messageLevel1 = "ERROR"
+    else:
+        messageLevel1 = "WARNING"
+    if errorKeysDict2NotInKeysDict1:
+        messageLevel2 = "ERROR"
+    else:
+        messageLevel2 = "WARNING"
+
+    error = False
+    dict1NotNoneKeys = sorted([ k for k in dict1.keys() if dict1[k] is not None ])
+    dict2NotNoneKeys = sorted([ k for k in dict2.keys() if dict2[k] is not None ])
+    if dict1NotNoneKeys != dict2NotNoneKeys:
+        dict1KeysNotInDict2 = [ k for k in dict1NotNoneKeys if k not in dict2NotNoneKeys ]
+        dict2KeysNotInDict1 = [ k for k in dict2NotNoneKeys if k not in dict1NotNoneKeys ]
+        if len(dict1KeysNotInDict2) > 0:
+            if errorKeysDict2NotInKeysDict1: error = True
+            print("\n%s: Some %s have been defined but do not have a defined %s" %(messageLevel2, dict1Name, dict2Name))
+            print("Missing %s:" %dict2Name)
+            print(dict1KeysNotInDict2)
+        if len(dict2KeysNotInDict1) > 0:
+            if errorKeysDict1NotInKeysDict2: error = True
+            print("\n%s: Some %s have a defined %s but have not been defined" %(messageLevel1, dict1Name, dict2Name))
+            print("Missing %s:" %dict1Name)
+            print(dict2KeysNotInDict1)
+        if error:
+            sys.exit()
+        else:
+            return False
+
+    return True
  
+
+def make_pairs(n):
+    """Return pairs of distinct integers from {0, 1, ...n}."""
+
+    pairs = []
+    for i1 in range(n-1):
+        for i2 in range(i1+1, n):
+            pairs.append([i1, i2])
+    return pairs
+
 
 class Histogram1(processor.ProcessorABC):
     """
-    Make histogram of selected variables in input ROOT file.
-    If variable do not exist in ROOT file, they are computed on the fly (e.g. HT, MET/HT, ...).
-
-    Conventions used in this class:
-       * j denotes AK4 jets
-       * J denotes AK8 jets
-       * j1 (resp. J1) denotes leading AK4 (resp. AK8) jet
-       * ge{n}j denotes a quantity with a cut selecting events with at least {n} AK4 jets
+    Make histograms of selected variables in input ROOT file.
+    If variable does not exist in ROOT file, they are computed on the fly (e.g. HT, MET/HT, ...).
     """
 
 
@@ -110,119 +209,141 @@ class Histogram1(processor.ProcessorABC):
 
         self.fileType = fileType
 
+        self.nJetMax = 4
+
         ## Variables to histogram and their x label
-        self.variables = {
-            "nFatJet"                    : r"Number of Fat Jet",
-            "FatJet_pt"                  : r"FatJet $p_{T}$ [GeV]",
-            "FatJet_eta"                 : r"FatJet $\eta$",
-            "FatJet_mass"                : r"FatJet mass [GeV]",
-            "FatJet_msoftdrop"           : r"FatJet softdrop mass [GeV]",
-            "FatJet_tau1"                : r"FatJet $\tau_{1}$",
-            "FatJet_tau2"                : r"FatJet $\tau_{2}$",
-            "FatJet_tau3"                : r"FatJet $\tau_{3}$",
+        # Variables without cuts
+        self.jets = ["ak4", "ak8"]
 
-            "nJet"                       : r"Number of AK4 jets",
-            "Jet_pt"                     : r"Jet $p_{T}$ [GeV]",
-            "Jet_eta"                    : r"Jet $\eta$",
-            "Jet_mass"                   : r"Jet mass [GeV]",
+        ## Iterable over jets
+        it1 = [ {"jet": "ak4"}, {"jet": "ak8"} ]
+        it11 = [ {"jet": "ak8"} ]
 
-            "MET_pt"                     : r"MET [GeV]",
-            "HT_AK8"                     : r"H_{T}^{AK8}",
-            "ST_AK8"                     : r"S_{T}^{AK8}",
-            "HT_AK4"                     : r"H_{T}^{AK4}",
-            "ST_AK4"                     : r"S_{T}^{AK4}",
+        ## Iterable over jets, cuts and jet number
+        it2 = []
+        it3 = []
+        for njet in range(1, self.nJetMax+1):
+            for ijet in range(1, njet+1):
+                for jet in self.jets:
+                    it2.append({"jet": jet, "cut": "ge"+str(njet)+jet, "n": str(ijet)})
+                for jet in ["ak8"]:
+                    it3.append({"jet": jet, "cut": "ge"+str(njet)+jet, "n": str(ijet)})
 
-            "FatJet_tau21"               : r"FatJet $\tau_{21}$",
-            "FatJet_tau32"               : r"FatJet $\tau_{32}$",
-            "METrHT_AK8"                 : r"MET/H_{T}^{AK8}",
-            "METrST_AK8"                 : r"MET/H_{T}^{AK8}",
-            "METrHT_AK4"                 : r"MET/H_{T}^{AK4}",
-            "METrST_AK4"                 : r"MET/H_{T}^{AK4}",
+        ## Iterable over cuts
+        it4 = [ {"cut": ""} ]
+        for njet in range(1, self.nJetMax+1):
+            it4.append({"cut": "_ge"+str(njet)+jet})
 
-            "deltaR_J1J2"                : r"$\Delta$ R J1 J2",
-            "deltaPhi_J1J2"              : r"$\Delta$ $\Phi$ J1 J2",
+        ## Iterable over cuts and jets
+        it5 = []
+        for njet in range(0, self.nJetMax+1):
+            for jet in self.jets:
+                if njet == 0:
+                    it5.append({"jet": jet, "cut": ""})
+                else:
+                    it5.append({"jet": jet, "cut": "_ge"+str(njet)+jet})
 
-            "deltaR_J1_J1PFcands"        : r"$\Delta$ R J1 J1PFCands",
-            "sum_J1PFcandsPt_dRle0.1"    : r"Sum J1PFCandsPt $\Delta$ R $\leq$ 0.1",
-            "sum_J1PFcandsPt_dR0.1To0.2" : r"0.1 $\lg$ Sum J1PFCandsPt $\Delta$ R $\leq$ 0.2",
-            "sum_J1PFcandsPt_dR0.2To0.3" : r"0.2 $\lg$ Sum J1PFCandsPt $\Delta$ R $\leq$ 0.3",
-            "sum_J1PFcandsPt_dR0.3To0.4" : r"0.3 $\lg$ Sum J1PFCandsPt $\Delta$ R $\leq$ 0.4",
-        }
+        ## Iterable over cuts and jets
+        it51 = []
+        for njet in range(1, self.nJetMax+1):
+            for jet in self.jets:
+                    it51.append({"jet": jet, "cut": "_ge"+str(njet)+jet})
+
+ 
+        ## Iterable over jet, cuts and jet pair numbers
+        it6 = []
+        for jet in self.jets:
+           for njet in range(2, self.nJetMax+1):
+               for ijet1, ijet2 in make_pairs(njet):
+                   it6.append({"jet": jet, "cut": "ge"+str(njet)+jet, "n1": str(ijet1+1), "n2": str(ijet2+1)})
+
+        ## Iterable over jet and cuts 
+        it7 = []
+        for jet in self.jets:
+           for njet in range(2, self.nJetMax+1):
+               it7.append({"jet": jet, "cut": "ge"+str(njet)+jet})
+
+        
+        variablesDescription = [
+            ( "{jet}Jet_n"           , it1 ),
+            ( "{jet}Jet_pt"          , it1 ),
+            ( "{jet}Jet_eta"         , it1 ),
+            ( "{jet}Jet_mass"        , it1 ),
+            ( "{jet}Jet_msoftdrop"   , it11 ),
+            ( "{jet}Jet_tau1"        , it11 ),
+            ( "{jet}Jet_tau2"        , it11 ),
+            ( "{jet}Jet_tau3"        , it11 ),
+            ( "{jet}Jet_tau21"       , it11 ),
+            ( "{jet}Jet_tau32"       , it11 ),
+
+            ( "{jet}Jet{n}_pt_{cut}"        , it2 ),
+            ( "{jet}Jet{n}_mass_{cut}"      , it2 ),
+            ( "{jet}Jet{n}_msoftdrop_{cut}" , it3 ),
+            ( "{jet}Jet{n}_tau1_{cut}"      , it3 ),
+            ( "{jet}Jet{n}_tau2_{cut}"      , it3 ),
+            ( "{jet}Jet{n}_tau3_{cut}"      , it3 ),
+            ( "{jet}Jet{n}_tau21_{cut}"     , it3 ),
+            ( "{jet}Jet{n}_tau32_{cut}"     , it3 ),
+
+            ( "MET_pt{cut}"      , it5 ),
+            ( "HT{jet}{cut}"     , it5 ),
+            ( "ST{jet}{cut}"     , it5 ),
+            ( "METrHT{jet}{cut}" , it51),
+            ( "METrST{jet}{cut}" , it5 ),
+
+            ( "deltaR_{jet}Jet{n1}_{jet}Jet{n2}_{cut}"   , it6 ),
+            ( "deltaPhi_{jet}Jet{n1}_{jet}Jet{n2}_{cut}" , it6 ),
+            ( "deltaEta_{jet}Jet{n1}_{jet}Jet{n2}_{cut}" , it6 ),
+
+            ( "deltaPhi_{jet}Jet{n}_MET_{cut}" , it2 ),
+            ( "deltaPhiMin_{jet}Jet_MET_{cut}" , it7 ),
+
+            ( "{jet}Jet{n1}_{jet}Jet{n2}_mass_{cut}" , it6 ),
+            ( "{jet}Jet{n1}_{jet}Jet{n2}_pt_{cut}"   , it6 ),
+
+
+            ( "deltaR_{jet}Jet{n}_{jet}Jet{n}PFCands_{cut}" , it2 ),
+            ( "sum_{jet}Jet{n}PFCandsPt_deltaR0.0To0.1_r_{jet}Jet{n}Pt_{cut}" , it2 ),
+            ( "sum_{jet}Jet{n}PFCandsPt_deltaR0.1To0.2_r_{jet}Jet{n}Pt_{cut}" , it2 ),
+            ( "sum_{jet}Jet{n}PFCandsPt_deltaR0.2To0.3_r_{jet}Jet{n}Pt_{cut}" , it2 ),
+            ( "sum_{jet}Jet{n}PFCandsPt_deltaR0.3To0.4_r_{jet}Jet{n}Pt_{cut}" , it2 ),
+
+        ]
+
+        simpleVariables = [
+            "MET_phi",
+            "MTak8_ge2ak8",
+            "MTak4_ge2ak4",
+            "RTak8_ge2ak8",
+            "RTak4_ge2ak4",
+        ]
+
+        self.variables = make_variables_names(variablesDescription) + simpleVariables
 
 
         ## In the process method, a genWeights dict is defined, storing the gen weights ak array to use for the different variables
-        #  Here we define which gen weights to use for the different variables
-        #  Explanation of the different dict values:
-        #    * noCut         : no cut nor array broadcasting
-        #    * noCut_J       : no cut and array broadcasting for FatJets
-        #    * noCut_j       : no cut and array broadcasting for AK4 Jets
-        #    * ge1J          : events with at least 1 FatJet
-        #    * ge1J_tau21_bc : events with at least 1 FatJet, tau1 != 0, array broadcasting
-        #    * ge1J_tau32_bc : events with at least 1 FatJet, tau2 != 0, array broadcasting
-        #    * ge1J_J1PFcands: events with at least 1 FatJet, PF candidates for leading FatJet
-        #    * ge2J          : events with at least 2 FatJet
-        #    * ge1j          : events with at least 1 AK4 Jet
-        self.genWeightsInfo = {
-            "nFatJet"                    : "noCut",
-            "FatJet_pt"                  : "noCut_J",
-            "FatJet_eta"                 : "noCut_J",
-            "FatJet_mass"                : "noCut_J",
-            "FatJet_msoftdrop"           : "noCut_J",
-            "FatJet_tau1"                : "noCut_J",
-            "FatJet_tau2"                : "noCut_J",
-            "FatJet_tau3"                : "noCut_J",
-
-            "nJet"                       : "noCut",
-            "Jet_pt"                     : "noCut_j",
-            "Jet_eta"                    : "noCut_j",
-            "Jet_mass"                   : "noCut_j",
-
-            "MET_pt"                     : "noCut",
-            "HT_AK8"                     : "noCut",
-            "ST_AK8"                     : "noCut",
-            "HT_AK4"                     : "noCut",
-            "ST_AK4"                     : "noCut",
-
-            "FatJet_tau21"               : "ge1J_tau21_bc",
-            "FatJet_tau32"               : "ge1J_tau32_bc",
-            "METrHT_AK8"                 : "ge1J",
-            "METrST_AK8"                 : "ge1J",
-            "METrHT_AK4"                 : "ge1j",
-            "METrST_AK4"                 : "ge1j",
-
-            "deltaR_J1J2"                : "ge2J",
-            "deltaPhi_J1J2"              : "ge2J",
-
-            "deltaR_J1_J1PFcands"        : "ge1J_J1PFcands",
-            "sum_J1PFcandsPt_dRle0.1"    : "ge1J",
-            "sum_J1PFcandsPt_dR0.1To0.2" : "ge1J",
-            "sum_J1PFcandsPt_dR0.2To0.3" : "ge1J",
-            "sum_J1PFcandsPt_dR0.3To0.4" : "ge1J",
-        }
+        #  The matching between genWeights and variables arrays is automatic
+        #  But in case of degenerate cases, the automatic matching will fail
+        #  Here we define which gen weights to use for the different variables in the degenerate case
+        self.genWeightsInfo = {}
 
 
-        ## In the process method, a sumGenWeights dict is defined to store the sum of gen weights
-        #  to keep track of the different event-level cuts for histogram normalization
+        ## List of cuts necessary for computing some variables (i.e. need at least 2 jets for computing delta R between leading 2 jets!)
         #  Note that the following convention is used:
-        #  if cut is in self.genWeightsInfo[variable] then self.sumGenWeightsInfo[variable] = cut
-        self.sumGenWeightsInfo = {}
-        self.cuts = ["noCut", "ge1J", "ge2J", "ge1j"]
-        for variable in self.genWeightsInfo.keys():
-            for cut in self.cuts:
-                if cut in self.genWeightsInfo[variable]:
-                    self.sumGenWeightsInfo[variable] = cut
+        #  if cut is in genWeights[variable] then self.sumGenWeightsInfo[variable] = cut
+        self.cuts = ["noCut"] 
+        for jet in self.jets:
+            for njet in range(1, self.nJetMax+1):
+                self.cuts.append("ge"+str(njet)+jet)
         
-
-        ## Running some sanity checks
-        check_dict_keys(self.variables, self.genWeightsInfo, "variable", "gen weight")
-        check_dict_keys(self.variables, self.sumGenWeightsInfo, "variable", "sum gen weight")
-
 
         ## Make dict filled with coffea histograms to be used in the accumulator
         histograms = {}
 
-        # Loop over all varaibles to histogram
-        for variable, label in self.variables.items():
+        # Loop over all variables to histogram
+        for variable in self.variables:
+            # x axis label
+            label = variable
             # Get binning of the variable
             binning_ = get_binning(variable, binning)
             # Define coffea histogram for the variable
@@ -247,168 +368,317 @@ class Histogram1(processor.ProcessorABC):
     def initialize_ak_arrays(self, events):
         """Fill a dict with the ak arrays that will be used to fill the histograms."""
 
-        ## Define dict storing the different ak arrays
-        akArrays = {}
+
+        ## Define dict storing the different arrays
+        varArrays = {}
+        jaggedVarArrays = {}
 
         ## Define dict storing the different masks used
         masks = {}
 
-
         ## Compute variables to histogram / defined in constructor
-        # No cut
-        akArrays["nFatJet"] = events["nFatJet"]
-        akArrays["FatJet_pt"] = ak.flatten(events["FatJet_pt"])
-        akArrays["FatJet_eta"] = ak.flatten(events["FatJet_eta"])
-        akArrays["FatJet_mass"] = ak.flatten(events["FatJet_mass"])
-        akArrays["FatJet_msoftdrop"] = ak.flatten(events["FatJet_msoftdrop"])
-        akArrays["FatJet_tau1"] = ak.flatten(events["FatJet_tau1"])
-        akArrays["FatJet_tau2"] = ak.flatten(events["FatJet_tau2"])
-        akArrays["FatJet_tau3"] = ak.flatten(events["FatJet_tau3"])
 
-        akArrays["nJet"] = events["nJet"]
-        akArrays["Jet_pt"] = ak.flatten(events["Jet_pt"])
-        akArrays["Jet_eta"] = ak.flatten(events["Jet_eta"])
-        akArrays["Jet_mass"] = ak.flatten(events["Jet_mass"])
-
-        akArrays["MET_pt"] = events["MET_pt"]
-
-        akArrays["HT_AK8"] = ak.sum(events["FatJet_pt"], axis=1)
-        akArrays["ST_AK8"] = akArrays["HT_AK8"] + events["MET_pt"]
-
-        akArrays["HT_AK4"] = ak.sum(events["Jet_pt"], axis=1)
-        akArrays["ST_AK4"] = akArrays["HT_AK4"] + events["MET_pt"]
+        # Basic jet variables
+        jetVariables = ["pt", "eta", "mass", "msoftdrop", "tau1", "tau2", "tau3"]
 
 
-        # At least 1 FatJet
-        masks["ge1J"] = (akArrays["nFatJet"]>0)
-        masks["ge1J_bc"] = ak.flatten(ak.broadcast_arrays(masks["ge1J"], events["FatJet_pt"])[0])
-        masks["ge1J_tau21_bc"] = masks["ge1J_bc"] & (akArrays["FatJet_tau1"][masks["ge1J_bc"]] != 0.)
-        masks["ge1J_tau32_bc"] = masks["ge1J_bc"] & (akArrays["FatJet_tau2"][masks["ge1J_bc"]] != 0.)
-
-        # The two lines below do not work if tau1 or tau2 is 0, which can apparently happen!
-        #akArrays["FatJet_tau21"] = akArrays["FatJet_tau2"][masks["ge1J_bc]/akArrays["FatJet_tau1"][masks["ge1J_bc]
-        #akArrays["FatJet_tau32"] = akArrays["FatJet_tau3"][masks["ge1J_bc]/akArrays["FatJet_tau2"][masks["ge1J_bc]
-        akArrays["FatJet_tau21"] = akArrays["FatJet_tau2"][masks["ge1J_tau21_bc"]]/akArrays["FatJet_tau1"][masks["ge1J_tau21_bc"]]
-        akArrays["FatJet_tau32"] = akArrays["FatJet_tau3"][masks["ge1J_tau32_bc"]]/akArrays["FatJet_tau2"][masks["ge1J_tau32_bc"]]
-
-        akArrays["METrHT_AK8"] = akArrays["MET_pt"][masks["ge1J"]] / akArrays["HT_AK8"][masks["ge1J"]]
-        akArrays["METrST_AK8"] = akArrays["MET_pt"][masks["ge1J"]] / akArrays["ST_AK8"][masks["ge1J"]]
-
-        fatJet_ge1J = make_PtEtaPhiMLorentzVector(
-            events["FatJet_pt"][masks["ge1J"]],
-            events["FatJet_eta"][masks["ge1J"]],
-            events["FatJet_phi"][masks["ge1J"]],
-            events["FatJet_mass"][masks["ge1J"]],
+        # Event-level variables not requiring jet info
+        jaggedVarArrays["MET_4vector"] = make_PtEtaPhiMLorentzVector(
+            get_from_events(events, "MET_pt"),
+            ak.zeros_like(get_from_events(events, "MET_pt")),
+            get_from_events(events, "MET_phi"),
+            ak.zeros_like(get_from_events(events, "MET_pt")),
         )
-        fatJet_ge1J_J1 = fatJet_ge1J[:,0]
+        varArrays["MET_pt"] = jaggedVarArrays["MET_4vector"].pt
+        varArrays["MET_phi"] = jaggedVarArrays["MET_4vector"].phi
 
 
-        if self.fileType == "PFnano102X":
-            masks["fatJetIdx0"] = (events["FatJetPFCands_jetIdx"][masks["ge1J"]] == 0)
-            J1PFCands = make_PtEtaPhiMLorentzVector(
-                events["FatJetPFCands_pt"][masks["ge1J"]][masks["fatJetIdx0"]],
-                events["FatJetPFCands_eta"][masks["ge1J"]][masks["fatJetIdx0"]],
-                events["FatJetPFCands_phi"][masks["ge1J"]][masks["fatJetIdx0"]],
-                events["FatJetPFCands_mass"][masks["ge1J"]][masks["fatJetIdx0"]],
+        # Looping over all jet types
+        for jet in self.jets:
+            # This could be refined fer Delphes etc...
+            if jet == "ak8":
+                PFnanoJet = "FatJet"
+            else:
+                PFnanoJet = "Jet"
+
+
+            # Making jet 4-vectors
+            jaggedVarArrays[jet+"Jet_4vector"] = make_PtEtaPhiMLorentzVector(
+                get_from_events(events, PFnanoJet+"_pt"),
+                get_from_events(events, PFnanoJet+"_eta"),
+                get_from_events(events, PFnanoJet+"_phi"),
+                get_from_events(events, PFnanoJet+"_mass"),
             )
 
-        elif self.fileType == "PFnano106X":
-            masks["fatJetIdx0"] = (events["JetPFCandsAK8_jetIdx"][masks["ge1J"]] == 0)
-            masks["fatJetCandIdx0"] = events["JetPFCandsAK8_candIdx"][masks["ge1J"]][masks["fatJetIdx0"]]
-            J1PFCands = make_PtEtaPhiMLorentzVector(
-                events["JetPFCands_pt"][masks["ge1J"]][masks["fatJetCandIdx0"]],
-                events["JetPFCands_eta"][masks["ge1J"]][masks["fatJetCandIdx0"]],
-                events["JetPFCands_phi"][masks["ge1J"]][masks["fatJetCandIdx0"]],
-                events["JetPFCands_mass"][masks["ge1J"]][masks["fatJetCandIdx0"]],
+            # Making jet constituents 4-vectors
+            if self.fileType == "PFnano102X":
+                if jet == "ak8": prefix = "Fat"
+                else: prefix = ""
+            elif self.fileType == "PFnano106X":
+                prefix = ""
+            # the else case cannot happen, it has already been tackled
+            jaggedVarArrays[jet+"JetPFCands4vector"] = make_PtEtaPhiMLorentzVector(
+                get_from_events(events, prefix+"JetPFCands_pt"),
+                get_from_events(events, prefix+"JetPFCands_eta"),
+                get_from_events(events, prefix+"JetPFCands_phi"),
+                get_from_events(events, prefix+"JetPFCands_mass"),
             )
 
-        # the else case cannot happen, it has already been tackled
 
-        fatJet_ge1J_J1_bc = ak.broadcast_arrays(fatJet_ge1J_J1, J1PFCands)[0]
-        deltaR_J1_J1PFcands = J1PFCands.delta_r(fatJet_ge1J_J1_bc)
-        akArrays["deltaR_J1_J1PFcands"] = ak.flatten(deltaR_J1_J1PFcands)
+            # Reading jet "basic" variables for all jets in each event (flatten the jagged array)
+            varArrays[jet+"Jet_n"] = get_from_events(events, "n"+PFnanoJet)
+            for var in jetVariables:
+                jaggedVarArrays[jet+"Jet_"+var] = get_from_events(events, PFnanoJet+"_"+var)
+                if jaggedVarArrays[jet+"Jet_"+var] is not None:
+                    varArrays[jet+"Jet_"+var] = ak.flatten(jaggedVarArrays[jet+"Jet_"+var])
+                else:
+                    varArrays[jet+"Jet_"+var] = None
+            
+            # Computing simple composed variables (e.g. tau21 = tau2/tau1)
+            if get_from_events(events, PFnanoJet+"_tau21") is not None:
+                jaggedVarArrays[jet+"Jet_tau21"] = get_from_events(events, PFnanoJet+"_tau21")
+                varArrays[PFnanoJet+"_tau21"] = ak.flatten(jaggedVarArrays[jet+"Jet_tau21"])
+                jetVariables.append("tau21")
+            elif (varArrays[jet+"Jet_tau1"] is not None) and (varArrays[jet+"Jet_tau2"] is not None):
+                jaggedVarArrays[jet+"Jet_tau21"] = divide_ak_arrays(jaggedVarArrays[jet+"Jet_tau2"], jaggedVarArrays[jet+"Jet_tau1"])
+                varArrays[jet+"Jet_tau21"] = ak.flatten(jaggedVarArrays[jet+"Jet_tau21"])
+                jetVariables.append("tau21")
+            else:
+                jaggedVarArrays[jet+"Jet_tau21"] = None
+                varArrays[jet+"Jet_tau21"] = None
 
-        masks["deltaR_J1_J1PFcands_le0.1"] = (deltaR_J1_J1PFcands <= 0.1)
-        masks["deltaR_J1_J1PFcands_0.1To0.2"] = (deltaR_J1_J1PFcands > 0.1) & (deltaR_J1_J1PFcands <= 0.2)
-        masks["deltaR_J1_J1PFcands_0.2To0.3"] = (deltaR_J1_J1PFcands > 0.2) & (deltaR_J1_J1PFcands <= 0.3)
-        masks["deltaR_J1_J1PFcands_0.3To0.4"] = (deltaR_J1_J1PFcands > 0.3) & (deltaR_J1_J1PFcands <= 0.4)
-        akArrays["sum_J1PFcandsPt_dRle0.1"] = ak.sum(J1PFCands.pt[masks["deltaR_J1_J1PFcands_le0.1"]], axis=1)
-        akArrays["sum_J1PFcandsPt_dR0.1To0.2"] = ak.sum(J1PFCands.pt[masks["deltaR_J1_J1PFcands_0.1To0.2"]], axis=1)
-        akArrays["sum_J1PFcandsPt_dR0.2To0.3"] = ak.sum(J1PFCands.pt[masks["deltaR_J1_J1PFcands_0.2To0.3"]], axis=1)
-        akArrays["sum_J1PFcandsPt_dR0.3To0.4"] = ak.sum(J1PFCands.pt[masks["deltaR_J1_J1PFcands_0.3To0.4"]], axis=1)
+            if get_from_events(events, PFnanoJet+"_tau32") is not None:
+                jaggedVarArrays[jet+"Jet_tau32"] = get_from_events(events, PFnanoJet+"_tau32")
+                varArrays[PFnanoJet+"_tau32"] = ak.flatten(jaggedVarArrays[jet+"Jet_tau32"])
+                jetVariables.append("tau32")
+            elif (varArrays[jet+"Jet_tau2"] is not None) and (varArrays[jet+"Jet_tau3"] is not None):
+                jaggedVarArrays[jet+"Jet_tau32"] = divide_ak_arrays(jaggedVarArrays[jet+"Jet_tau3"], jaggedVarArrays[jet+"Jet_tau2"])
+                varArrays[jet+"Jet_tau32"] = ak.flatten(jaggedVarArrays[jet+"Jet_tau32"])
+                jetVariables.append("tau32")
+            else:
+                jaggedVarArrays[jet+"Jet_tau32"] = None
+                varArrays[jet+"Jet_tau32"] = None
 
 
-        # At least 1 AK4 Jet
-        masks["ge1j"] = (akArrays["nJet"]>0)
+            # Making array of the above quantities for leading, subleading ... jets for event with more than 1, 2 ... jets
+            for njet in range(1, self.nJetMax+1):
+                geNJet  =  "ge" + str(njet) + jet   # shorthand
+                masks[geNJet] = (get_from_events(events, "n"+PFnanoJet) > njet-1)
+                masks[geNJet+"_bc"] = ak.flatten(ak.broadcast_arrays(masks[geNJet], get_from_events(events, PFnanoJet+"_pt"))[0])
 
-        akArrays["METrHT_AK4"] = akArrays["MET_pt"][masks["ge1j"]] / akArrays["HT_AK4"][masks["ge1j"]]
-        akArrays["METrST_AK4"] = akArrays["MET_pt"][masks["ge1j"]] / akArrays["ST_AK4"][masks["ge1j"]]
+                for ijet in range(1, njet+1):
+                    sijet = str(ijet)
+                    for var in jetVariables:
+                        if jaggedVarArrays[jet+"Jet_"+var] is not None:
+                            varArrays[jet+"Jet"+sijet+"_"+var+"_"+geNJet] = jaggedVarArrays[jet+"Jet_"+var][masks[geNJet]][:, ijet-1]
+                        else:
+                            varArrays[jet+"Jet"+sijet+"_"+var+"_"+geNJet] = None
 
 
-        # At least 2 FatJets
-        masks["ge2J"] = (akArrays["nFatJet"]>1)
-        FatJet_ge2J = make_PtEtaPhiMLorentzVector(
-            events["FatJet_pt"][masks["ge2J"]],
-            events["FatJet_eta"][masks["ge2J"]],
-            events["FatJet_phi"][masks["ge2J"]],
-            events["FatJet_mass"][masks["ge2J"]],
-        )
+            # Making some quantites involving jet and jet constituents 4-vectors
+            for njet in range(1, self.nJetMax+1):
 
-        akArrays["deltaR_J1J2"] = FatJet_ge2J[:,0].delta_r(FatJet_ge2J[:,1])
-        akArrays["deltaPhi_J1J2"] = FatJet_ge2J[:,0].delta_phi(FatJet_ge2J[:,1])
+                geNJet = "ge" + str(njet) + jet   # shorthand
+                maskGeNJet = masks[geNJet]        # shorthand
 
-        return akArrays, masks
+                # MET 4-vector for events with at least njet jets
+                jaggedVarArrays["MET_4vector_"+geNJet] = jaggedVarArrays["MET_4vector"][maskGeNJet]
+
+                # jet 4-vector for events with at least njet jets
+                jaggedVarArrays[jet+"Jet_4vector_"+geNJet] = jaggedVarArrays[jet+"Jet_4vector"][maskGeNJet]
+
+                for ijet in range(1, njet+1):
+                    sijet = str(ijet)
+                    jaggedVarArrays[jet+"Jet"+sijet+"_4vector_"+geNJet] = jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet-1]
+
+                    if self.fileType == "PFnano102X":
+                        if jet == "ak8": prefix = "Fat"
+                        else: prefix = ""
+                        masks[jet+"JetIdx"+sijet+"_"+geNJet] = (get_from_events(events, prefix+"JetPFCands_jetIdx")[maskGeNJet] == ijet-1)
+                        mask = masks[jet+"JetIdx"+sijet+"_"+geNJet]  # shorthand
+                        jaggedVarArrays[jet+"Jet"+sijet+"PFCands4vector_"+geNJet] = jaggedVarArrays[jet+"JetPFCands4vector"][maskGeNJet][mask]
+
+                    elif self.fileType == "PFnano106X":
+                        masks[jet+"JetIdx"+sijet+"_"+geNJet] = (get_from_events(events, "JetPFCands"+jet.upper()+"_jetIdx")[maskGeNJet] == ijet-1)
+                        masks[jet+"CandIdx"+sijet+"_"+geNJet] = events["JetPFCands"+jet.upper()+"_candIdx"][maskGeNJet][masks[jet+"JetIdx"+sijet+"_"+geNJet]]
+                        mask = masks[jet+"CandIdx"+sijet+"_"+geNJet]  # shorthand
+                        jaggedVarArrays[jet+"Jet"+sijet+"PFCands4vector_"+geNJet] = jaggedVarArrays[jet+"JetPFCands4vector"][maskGeNJet][mask]
+
+
+
+                    # deltaR between constituents and jet axis
+                    jaggedVarArrays[jet+"Jet"+sijet+"_4vector_"+geNJet+"_bc"] = ak.broadcast_arrays(jaggedVarArrays[jet+"Jet"+sijet+"_4vector_"+geNJet], jaggedVarArrays[jet+"Jet"+sijet+"PFCands4vector_"+geNJet])[0]
+                    jaggedVarArrays["deltaR_"+jet+"Jet"+sijet+"_"+jet+"Jet"+sijet+"PFCands_"+geNJet] = jaggedVarArrays[jet+"Jet"+sijet+"PFCands4vector_"+geNJet].delta_r(jaggedVarArrays[jet+"Jet"+sijet+"_4vector_"+geNJet+"_bc"])
+                    varArrays["deltaR_"+jet+"Jet"+sijet+"_"+jet+"Jet"+sijet+"PFCands_"+geNJet] = ak.flatten(jaggedVarArrays["deltaR_"+jet+"Jet"+sijet+"_"+jet+"Jet"+sijet+"PFCands_"+geNJet])
+
+
+                    # Sum jet constituents pT / jet pT   for constituents having x.x <= deltaR < y.y wrt jet axis
+                    for dRCut in ((0.0, 0.1), (0.1, 0.2), (0.2, 0.3), (0.3, 0.4)):
+                        deltaRCut = str(dRCut[0]) + "To" + str(dRCut[1])
+                        masks["deltaR_"+deltaRCut] = (jaggedVarArrays["deltaR_"+jet+"Jet"+sijet+"_"+jet+"Jet"+sijet+"PFCands_"+geNJet] >= dRCut[0]) & (jaggedVarArrays["deltaR_"+jet+"Jet"+sijet+"_"+jet+"Jet"+sijet+"PFCands_"+geNJet] < dRCut[1])
+                        varArrays["sum_"+jet+"Jet"+sijet+"PFCandsPt_deltaR"+deltaRCut+"_r_"+jet+"Jet"+sijet+"Pt_"+geNJet] = \
+                            ak.sum(jaggedVarArrays[jet+"Jet"+sijet+"PFCands4vector_"+geNJet].pt[masks["deltaR_"+deltaRCut]], axis=1) / jaggedVarArrays[jet+"Jet"+sijet+"_4vector_"+geNJet].pt
+
+                # delta R, phi eta between any pair of jets
+                # mass and pt of any pair of jets
+                if njet >= 2:
+                    for ijet1, ijet2 in make_pairs(njet):
+                        sijet1 = str(ijet1+1)
+                        sijet2 = str(ijet2+1)
+                        varArrays["deltaR_"+jet+"Jet"+sijet1+"_"+jet+"Jet"+sijet2+"_"+geNJet] = jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet1].delta_r(jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet2])
+                        varArrays["deltaPhi_"+jet+"Jet"+sijet1+"_"+jet+"Jet"+sijet2+"_"+geNJet] = abs(jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet1].delta_phi(jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet2]))
+                        varArrays["deltaEta_"+jet+"Jet"+sijet1+"_"+jet+"Jet"+sijet2+"_"+geNJet] = abs(jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet1].eta - jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet2].eta)
+
+                        varArrays[jet+"Jet"+sijet1+"_"+jet+"Jet"+sijet2+"_mass_"+geNJet] = (jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet1] + jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet2]).mass
+                        varArrays[jet+"Jet"+sijet1+"_"+jet+"Jet"+sijet2+"_pt_"+geNJet] = (jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet1] + jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet2]).pt
+
+
+                # delta phi between any jet and MET
+                for ijet in range(njet):
+                    sijet = str(ijet+1)
+                    varArrays["deltaPhi_"+jet+"Jet"+sijet+"_MET_"+geNJet] = abs(jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet].delta_phi(jaggedVarArrays["MET_4vector_"+geNJet]))
+                
+                # delta phi min between any jet and MET
+                if njet >=2:
+                    listOfAkArrays = [ varArrays["deltaPhi_"+jet+"Jet"+str(ijet+1)+"_MET_"+geNJet] for ijet in range(njet) ]
+                    varArrays["deltaPhiMin_"+jet+"Jet_MET_"+geNJet] = ak.min(ak.Array(listOfAkArrays), axis=0)
+
+
+
+            # Some other event-level variables requiring jet info
+            # MET for different cuts
+            for njet in range(1, self.nJetMax+1):
+                geNJet = "ge" + str(njet) + jet   # shorthand
+                maskGeNJet = masks[geNJet]        # shorthand
+                varArrays["MET_pt_"+geNJet] = varArrays["MET_pt"][maskGeNJet]
+                varArrays["MET_phi_"+geNJet] = varArrays["MET_phi"][maskGeNJet]
+
+            # HT, ST
+            varArrays["HT"+jet] = ak.sum(jaggedVarArrays[jet+"Jet_pt"], axis=1)
+            varArrays["ST"+jet] = varArrays["HT"+jet] + varArrays["MET_pt"]
+
+            # M2
+            if self.nJetMax >= 2:
+                geNJet = "ge2" + jet           # shorthand
+                j1j2 = jet+"Jet1_"+jet+"Jet2"  # shorthand
+                j1j2_4vector = jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, 0] + jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, 1]
+                MET_phi = ak.zip({ "phi": varArrays["MET_phi_"+geNJet] })
+
+                deltaPhi_j1j2_MET = abs(j1j2_4vector.delta_phi(MET_phi))
+                j1j2_m2 = varArrays[j1j2+"_mass_"+geNJet]**2
+                j1j2_pt = varArrays[j1j2+"_pt_"+geNJet]**2
+                j1j2_pt2 = j1j2_pt**2
+                MET_pt = varArrays["MET_pt_"+geNJet]
+                varArrays["MT"+jet+"_"+geNJet] = np.sqrt( j1j2_m2  +  2 * ( np.sqrt(j1j2_m2 + j1j2_pt2) * MET_pt - MET_pt * j1j2_pt * np.cos(deltaPhi_j1j2_MET) ) )
+
+            # RT
+            varArrays["RT"+jet+"_"+geNJet] = varArrays["MET_pt_"+geNJet] / varArrays["MT"+jet+"_"+geNJet]
+         
+            # Ratios of MET with HT, ST
+            varArrays["METrST"+jet] = varArrays["MET_pt"] / varArrays["ST"+jet]
+            for njet in range(1, self.nJetMax+1):
+                geNJet = "ge" + str(njet) + jet   # shorthand
+                maskGeNJet = masks[geNJet]        # shorthand
+                varArrays["HT"+jet+"_"+geNJet] = varArrays["HT"+jet][maskGeNJet]
+                varArrays["ST"+jet+"_"+geNJet] = varArrays["ST"+jet][maskGeNJet]
+                varArrays["METrHT"+jet+"_"+geNJet] = varArrays["MET_pt"][maskGeNJet] / varArrays["HT"+jet][maskGeNJet]
+                varArrays["METrST"+jet+"_"+geNJet] = varArrays["MET_pt"][maskGeNJet] / varArrays["ST"+jet][maskGeNJet]
+
+
+        return varArrays, masks
+
+
+    def initialize_gen_weights(self, events, masks):
+        """Make events gen weights for the different variables."""
+
+        genWeights = {}
+        genWeights["noCut"] = events["genWeight"]
+        genWeights["noCut_ak8bc"] = ak.flatten(ak.broadcast_arrays(genWeights["noCut"], events["FatJet_pt"])[0])
+        genWeights["noCut_ak4bc"] = ak.flatten(ak.broadcast_arrays(genWeights["noCut"], events["Jet_pt"])[0])
+
+        ## To be automatised
+        for jet in self.jets:
+            for njet in range(1, self.nJetMax+1):
+                geNJet = "ge" + str(njet) + jet   # shorthand
+                maskGeNJet = masks[geNJet]        # shorthand
+                genWeights[geNJet] = genWeights["noCut"][maskGeNJet]
+
+                for ijet in range(njet):
+                    sijet = str(ijet+1)   # shorthand
+
+                    if self.fileType == "PFnano102X":
+                        if jet == "ak8": prefix = "Fat"
+                        else: prefix = ""
+                        genWeights[geNJet+"_"+jet+"Jet"+sijet+"PFCandsbc"] = ak.flatten(ak.broadcast_arrays(genWeights[geNJet], events[prefix+"JetPFCands_pt"][maskGeNJet][masks[jet+"JetIdx"+sijet+"_"+geNJet]])[0])
+                    elif self.fileType == "PFnano106X":
+                        genWeights[geNJet+"_"+jet+"Jet"+sijet+"PFCandsbc"] = ak.flatten(ak.broadcast_arrays(genWeights[geNJet], events["JetPFCands_pt"][maskGeNJet][masks[jet+"JetIdx"+sijet+"_"+geNJet]])[0])
+
+        return genWeights
+
+
+    def fill_histograms(self, varArrays, genWeights, output):
+        """Fill histograms."""
+
+        size2gen = {}
+        for key in genWeights.keys():
+            size = str(ak.size(genWeights[key]))
+            if size not in size2gen.keys():
+                size2gen[size] = [key]
+            else:
+                size2gen[size].append(key)
+
+        if len(size2gen.keys()) != len(genWeights.keys()):
+            print("\nWARNING: Some gen weights have the same length, automatic matching between variable and genWeight arrays may be incorrect.")
+            print("         Check the cutflow to see whether these variables have 100% efficiency.")
+            print("         If not, the gen weights for the relevant variables can be defined in genWeightsInfo.")
+            print("         The following genWeights have the same lengths:")
+            for key, value in size2gen.items():
+                if len(value) > 1:
+                    print("%s with length %s" %(value, key))
+
+        for variable in self.variables:
+            # Find corresponding gen weights
+            size = str(ak.size(varArrays[variable]))
+            if (size not in size2gen.keys()) and (variable not in self.genWeightsInfo.keys()):
+                print("\nWARNING: No gen weight for variable %s. Skipping." %variable)
+            else:
+                if variable in self.genWeightsInfo.keys():
+                    genWeight = genWeights[self.genWeightsInfo[variable]]
+                else:
+                    genWeight = genWeights[size2gen[size][0]]
+                fill_histogram(output, variable, varArrays[variable], genWeight)
+
 
 
     def process(self, events):
-        """Fill histograms."""
+        """Make arrays and genWeights for all interesting variable, and fill histograms."""
 
         ## Define accumulator
         output = self.accumulator.identity()
 
-        ## Make akArrays that will be used to fill histograms
+        ## Make varArrays that will be used to fill histograms
         #  Also return masks used, will be useful for making gen weights
-        akArrays, masks = self.initialize_ak_arrays(events)
+        varArrays, masks = self.initialize_ak_arrays(events)
 
         ## Running some sanity checks
-        check_dict_keys(self.variables, akArrays, "variable", "ak array")
+        checkPassed = check_dict_keys(self.variables, varArrays, "variable", "ak array", errorKeysDict1NotInKeysDict2=False)
+        if not checkPassed:
+            print("\nWARNING: Only variable defined in constructor will be histogrammed.")
 
         ## Make gen weights
-        #  Here we make the gen weights defined in self.genWeights
-        genWeights = {}
-        genWeights["noCut"] = events["genWeight"]
-        genWeights["noCut_J"] = ak.flatten(ak.broadcast_arrays(genWeights["noCut"], events["FatJet_pt"])[0])
-        genWeights["noCut_j"] = ak.flatten(ak.broadcast_arrays(genWeights["noCut"], events["Jet_pt"])[0])
-        genWeights["ge1J"] = genWeights["noCut"][masks["ge1J"]]
-        genWeights["ge1J_tau21_bc"] = genWeights["noCut_J"][masks["ge1J_tau21_bc"]]
-        genWeights["ge1J_tau32_bc"] = genWeights["noCut_J"][masks["ge1J_tau32_bc"]]
-        if self.fileType == "PFnano102X":
-            genWeights["ge1J_J1PFcands"] = ak.flatten(ak.broadcast_arrays(genWeights["ge1J"], events["FatJetPFCands_pt"][masks["ge1J"]][masks["fatJetIdx0"]])[0])
-        elif self.fileType == "PFnano106X":
-            genWeights["ge1J_J1PFcands"] = ak.flatten(ak.broadcast_arrays(genWeights["ge1J"], events["JetPFCands_pt"][masks["ge1J"]][masks["fatJetCandIdx0"]])[0])
-        #genWeights["ge1J_J1PFcands_dRle0p1"] = ak.flatten(genWeights["ge1J_J1PFcands"][masks["deltaR_J1_J1PFcands_le0p1"]])
-        genWeights["ge2J"] = genWeights["noCut"][masks["ge2J"]]
-        genWeights["ge1j"] = genWeights["noCut"][masks["ge1j"]]
-
-        ## Running some sanity checks
-        check_dict_keys(genWeights, { k: "" for k in self.genWeightsInfo.values() }, "gen weight", "gen weight initialized in constructor")
+        genWeights = self.initialize_gen_weights(events, masks)
 
         ## Make sum of gen weights
-        #  Here we make the sum of gen weights defined in self.sumGenWeights
+        # Make the sum of gen weights for the cuts defined in contructors
         sumGenWeights = {}
         for cut in self.cuts:
             sumGenWeights[cut] = ak.sum(genWeights[cut])
-
-        ## Fill histograms
-        for variable in akArrays.keys():
-            fillHistogram(output, variable, akArrays[variable], genWeights[self.genWeightsInfo[variable]])
-
-        ## Cutflow information for histogram normalization
-        for variable in akArrays.keys():
-            output["cutflow"][variable] += sumGenWeights[self.sumGenWeightsInfo[variable]]
+        # Save cutflow information
         for cut in self.cuts:
             output["cutflow"][cut] += sumGenWeights[cut]
 
+        ## Fill histograms
+        self.fill_histograms(varArrays, genWeights, output)
 
         return output
 

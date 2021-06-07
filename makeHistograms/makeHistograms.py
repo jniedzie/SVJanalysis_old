@@ -1,6 +1,7 @@
 import coffea as cf
 import awkward as ak
 import awkward0 as ak0
+import uproot
 import uproot3
 import numpy as np
 import time
@@ -37,10 +38,29 @@ def print_cutflow(cutflow, histogramKeys):
     return
 
 
-def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, processor):
+def calculate_efficiency(fileset, efficiencyBranch, genWeightBranch="Events/genWeight"):
+    """
+    Calculate efficiency using the effienciency written in input ROOT files,
+    weighted by the sum of generator weights for the events in this ROOT file.
+    """
+
+    efficiencies = []
+    sumGenWeights = []
+
+    for file_ in fileset:
+        data = uproot.open(file_)
+        efficiencies.append( data[efficiencyBranch].arrays()[efficiencyBranch.split("/")[-1]][0] )
+        sumGenWeights.append( ak.sum(data[genWeightBranch].arrays()[genWeightBranch.split("/")[-1]]) )
+
+    efficiency = sum([ eff*sgw for eff, sgw in zip(efficiencies, sumGenWeights)]) / sum(sumGenWeights)
+    
+    return efficiency
+
+
+def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, efficiency):
     """
     Write histograms, stored in a coffea accumulator, to a ROOT file.
-    Cut efficiencies for the variables histogrammed (cutflow), luminosity (lumi)
+    Number of generated events (cutflow), pre-selection cut efficiency (efficiency), luminosity (lumi)
     and cross-section (xSection) are needed to normalize the histograms.
     """
 
@@ -51,18 +71,9 @@ def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, pr
     with getattr(uproot3, mode)(rootFileName) as f:    # Create/update output file
         for variable, hist in accumulator.items():
             if isinstance(hist, cf.hist.Hist):
-                if variable not in cutflow.keys():
-                    print("WARNING: Sum of gen weights not available for %s." %variable)
-                    print("         Histogram cannot to be written into ROOT file.")
-                    print("         Check processor %s." %processor)
-                else:
-                    if cutflow[variable] > 0.:
-                        hist.scale(lumi * xSection / cutflow[variable])
-                        f[variable] = cf.hist.export1d(hist)
-                        writtenHists.append(variable)
-                    else:
-                        print("WARNING: Sum of gen weights is 0 for %s." %variable)
-                        print("         Histogram cannot to be written into ROOT file.")
+                hist.scale(lumi * xSection * efficiency / cutflow["noCut"])
+                f[variable] = cf.hist.export1d(hist)
+                writtenHists.append(variable)
 
     print("Histograms written to output ROOT file:")
     for writtenHist in writtenHists:
@@ -71,7 +82,7 @@ def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, pr
     return
 
 
-def main(mode, binning, sample, fileType, processor, outputDirectory, lumi):
+def main(mode, binning, sample, fileType, processor, outputDirectory, lumi, useEfficiencies, efficiencyBranch):
 
     ## Get sample name and cross-section
     sampleName = sample["name"]
@@ -93,6 +104,12 @@ def main(mode, binning, sample, fileType, processor, outputDirectory, lumi):
         maxchunks = None,
     )
 
+    ## Efficiencies
+    if useEfficiencies:
+        efficiency = calculate_efficiency(sample["fileset"], efficiencyBranch)
+    else:
+        efficiency = 1.
+
 
     ## Print out cutflow
     cutflow = output.pop("cutflow")
@@ -101,7 +118,7 @@ def main(mode, binning, sample, fileType, processor, outputDirectory, lumi):
 
     ## Save histograms to ROOT file
     rootFileName = outputDirectory + sampleName + ".root"
-    write_root_file(output, rootFileName, mode, cutflow, lumi, xSection, processor)
+    write_root_file(output, rootFileName, mode, cutflow, lumi, xSection, efficiency)
 
     return
 
@@ -152,6 +169,11 @@ if __name__ == "__main__":
         help="Total luminosity for normalization of the histograms (default=59725 pb-1)",
         default=59725.0,   # 21071.0+38654.0
         )
+    parser.add_argument(
+        "-e", "--efficiency",
+        help="Use efficiencies from the input files",
+        nargs='?', const="Efficiencies/totalEfficiency", default="False",
+        )
 
     args = parser.parse_args()
 
@@ -173,6 +195,14 @@ if __name__ == "__main__":
         samplesNames = list(samplesDescription.keys())
     else:
         samplesNames = args.samples.split(",")
+
+    ## Efficiencies
+    if args.efficiency == "False":
+        useEfficiencies = False
+        efficiencyBranch = None
+    else:
+        useEfficiencies = True
+        efficiencyBranch = args.efficiency
 
     ## Loop over all samples
     for sampleName in samplesNames:
@@ -200,7 +230,7 @@ if __name__ == "__main__":
             fileType = args.fileType
 
         # Make histograms
-        main(args.mode, binning, sample, fileType, args.processor, outputDirectory, float(args.lumi))
+        main(args.mode, binning, sample, fileType, args.processor, outputDirectory, float(args.lumi), useEfficiencies, efficiencyBranch)
 
 
     elapsed = time.time() - tstart
