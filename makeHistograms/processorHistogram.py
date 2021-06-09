@@ -18,12 +18,23 @@ import utilities as utl
 
 def divide_ak_arrays(akArray1, akArray2, divisionByZeroValue=1.):
     """
-    Input: 2 ak arrays with floatting point values having the same jagged structure.
-    Return a jagged list having same jagged structure corresponding to
-           akArray1 / akArray2
-           where the division by 0 is replaced by divisionByZeroValue
-           e.g. akArray1 = [ [0, 3], [5], [2] ] akArray2 = [ [3, 3], [0], [1] ]
-                division = [ [0, 1], [1], [0.5] ]
+    Makes the division of an ak array by another one.
+    The arrays must have the same jagged structure.
+    Example: akArray1 = [ [0, 3], [5], [2] ] akArray2 = [ [3, 3], [0], [1] ]
+             division = [ [0, 1], [1], [0.5] ]
+
+    Parameters
+    ----------
+    akArray1: awkward.Array < float >
+    akArray2: awkward.Array < float > 
+    divisionByZeroValue: float, optional, default=1.
+        If division by zero, the default value to use (see example)
+
+    Returns
+    -------
+    division: awkward.Array < float >
+        division = akArray1 / akArray2
+        Has the same jagged structure as the input ak arrays
     """
 
     isNotZero = (akArray2!=0.)
@@ -82,9 +93,9 @@ def fill_histogram(output, variable, axis, weight):
             print("weight size: %s" %(type2))
             sys.exit()
     else:
-        pass
-        # A warning has been sent earlier when defining coffea histograms
-
+        print("ERROR: Variable %s is not defined in the coffea accumulator!" %variable)
+        sys.exit()
+       
 
 def make_variables_names(variablesDescriptions):
     """
@@ -196,6 +207,14 @@ def make_pairs(n):
             pairs.append([i1, i2])
     return pairs
 
+
+
+def calc_MT(j1j2_m2, j1j2_pt, MET_pt, deltaPhi_j1j2_MET):
+    """Calculate MT variable."""
+
+    j1j2_pt2 = j1j2_pt ** 2
+    return np.sqrt( j1j2_m2  +  2 * ( np.sqrt(j1j2_m2 + j1j2_pt2) * MET_pt - MET_pt * j1j2_pt * np.cos(deltaPhi_j1j2_MET) ) )
+ 
 
 class Histogram1(processor.ProcessorABC):
     """
@@ -368,6 +387,34 @@ class Histogram1(processor.ProcessorABC):
     def initialize_ak_arrays(self, events):
         """Fill a dict with the ak arrays that will be used to fill the histograms."""
 
+        def compute_tau_ratios(events, tauRatioBranchName, tauAVariableName, tauBVariableName, tauRatioVariableName, jaggedVarArrays, varArrays):
+            """
+            Read tauRatio=tauA/tauB if available in tree or compute it on the fly if not.
+            
+            Parameters
+            ----------
+            events: ak.Array
+            tauRatioBranchName: str
+            tauAVariableName: str
+            tauBVariableName: str
+            tauRatioVariableName: str
+            jaggedVarArrays: ak.Array
+            varArrays: ak.Array
+            """
+
+            if get_from_events(events, tauRatioBranchName) is not None:
+                jaggedVarArrays[tauRatioBranchName] = get_from_events(events, tauRatioBranchName)
+                varArrays[tauRatioBranchName] = ak.flatten(jaggedVarArrays[tauRatioBranchName])
+            elif (varArrays[tauAVariableName] is not None) and (varArrays[tauBVariableName] is not None):
+                jaggedVarArrays[tauRatioVariableName] = divide_ak_arrays(jaggedVarArrays[tauAVariableName], jaggedVarArrays[tauBVariableName])
+                varArrays[tauRatioVariableName] = ak.flatten(jaggedVarArrays[tauRatioVariableName])
+            else:
+                jaggedVarArrays[tauRatioVariableName] = None
+                varArrays[tauRatioVariableName] = None
+
+            return
+
+           
 
         ## Define dict storing the different arrays
         varArrays = {}
@@ -396,18 +443,15 @@ class Histogram1(processor.ProcessorABC):
         # Looping over all jet types
         for jet in self.jets:
             # This could be refined fer Delphes etc...
-            if jet == "ak8":
-                PFnanoJet = "FatJet"
-            else:
-                PFnanoJet = "Jet"
+            jetCollection = "FatJet" if jet == "ak8" else "Jet"
 
 
             # Making jet 4-vectors
             jaggedVarArrays[jet+"Jet_4vector"] = make_PtEtaPhiMLorentzVector(
-                get_from_events(events, PFnanoJet+"_pt"),
-                get_from_events(events, PFnanoJet+"_eta"),
-                get_from_events(events, PFnanoJet+"_phi"),
-                get_from_events(events, PFnanoJet+"_mass"),
+                get_from_events(events, jetCollection+"_pt"),
+                get_from_events(events, jetCollection+"_eta"),
+                get_from_events(events, jetCollection+"_phi"),
+                get_from_events(events, jetCollection+"_mass"),
             )
 
             # Making jet constituents 4-vectors
@@ -426,45 +470,29 @@ class Histogram1(processor.ProcessorABC):
 
 
             # Reading jet "basic" variables for all jets in each event (flatten the jagged array)
-            varArrays[jet+"Jet_n"] = get_from_events(events, "n"+PFnanoJet)
+            varArrays[jet+"Jet_n"] = get_from_events(events, "n"+jetCollection)
             for var in jetVariables:
-                jaggedVarArrays[jet+"Jet_"+var] = get_from_events(events, PFnanoJet+"_"+var)
+                jaggedVarArrays[jet+"Jet_"+var] = get_from_events(events, jetCollection+"_"+var)
                 if jaggedVarArrays[jet+"Jet_"+var] is not None:
                     varArrays[jet+"Jet_"+var] = ak.flatten(jaggedVarArrays[jet+"Jet_"+var])
                 else:
                     varArrays[jet+"Jet_"+var] = None
             
-            # Computing simple composed variables (e.g. tau21 = tau2/tau1)
-            if get_from_events(events, PFnanoJet+"_tau21") is not None:
-                jaggedVarArrays[jet+"Jet_tau21"] = get_from_events(events, PFnanoJet+"_tau21")
-                varArrays[PFnanoJet+"_tau21"] = ak.flatten(jaggedVarArrays[jet+"Jet_tau21"])
-                jetVariables.append("tau21")
-            elif (varArrays[jet+"Jet_tau1"] is not None) and (varArrays[jet+"Jet_tau2"] is not None):
-                jaggedVarArrays[jet+"Jet_tau21"] = divide_ak_arrays(jaggedVarArrays[jet+"Jet_tau2"], jaggedVarArrays[jet+"Jet_tau1"])
-                varArrays[jet+"Jet_tau21"] = ak.flatten(jaggedVarArrays[jet+"Jet_tau21"])
-                jetVariables.append("tau21")
-            else:
-                jaggedVarArrays[jet+"Jet_tau21"] = None
-                varArrays[jet+"Jet_tau21"] = None
-
-            if get_from_events(events, PFnanoJet+"_tau32") is not None:
-                jaggedVarArrays[jet+"Jet_tau32"] = get_from_events(events, PFnanoJet+"_tau32")
-                varArrays[PFnanoJet+"_tau32"] = ak.flatten(jaggedVarArrays[jet+"Jet_tau32"])
-                jetVariables.append("tau32")
-            elif (varArrays[jet+"Jet_tau2"] is not None) and (varArrays[jet+"Jet_tau3"] is not None):
-                jaggedVarArrays[jet+"Jet_tau32"] = divide_ak_arrays(jaggedVarArrays[jet+"Jet_tau3"], jaggedVarArrays[jet+"Jet_tau2"])
-                varArrays[jet+"Jet_tau32"] = ak.flatten(jaggedVarArrays[jet+"Jet_tau32"])
-                jetVariables.append("tau32")
-            else:
-                jaggedVarArrays[jet+"Jet_tau32"] = None
-                varArrays[jet+"Jet_tau32"] = None
+            # Computing ratios of nsubjettiness
+            for tauA, tauB, tauRatio in (("tau2", "tau1", "tau21"), ("tau3", "tau2", "tau32")):
+                tauRatioBranchName = jetCollection + "_" + tauRatio
+                tauAVariableName = jet + "Jet_" + tauA
+                tauBVariableName = jet + "Jet_" + tauB
+                tauRatioVariableName = jet + "Jet_" + tauRatio
+                compute_tau_ratios(events, tauRatioBranchName, tauAVariableName, tauBVariableName, tauRatioVariableName, jaggedVarArrays, varArrays)
+                if varArrays[tauRatioVariableName] is not None: jetVariables.append(tauRatio)
 
 
             # Making array of the above quantities for leading, subleading ... jets for event with more than 1, 2 ... jets
             for njet in range(1, self.nJetMax+1):
                 geNJet  =  "ge" + str(njet) + jet   # shorthand
-                masks[geNJet] = (get_from_events(events, "n"+PFnanoJet) > njet-1)
-                masks[geNJet+"_bc"] = ak.flatten(ak.broadcast_arrays(masks[geNJet], get_from_events(events, PFnanoJet+"_pt"))[0])
+                masks[geNJet] = (get_from_events(events, "n"+jetCollection) > njet-1)
+                masks[geNJet+"_bc"] = ak.flatten(ak.broadcast_arrays(masks[geNJet], get_from_events(events, jetCollection+"_pt"))[0])
 
                 for ijet in range(1, njet+1):
                     sijet = str(ijet)
@@ -487,13 +515,14 @@ class Histogram1(processor.ProcessorABC):
                 # jet 4-vector for events with at least njet jets
                 jaggedVarArrays[jet+"Jet_4vector_"+geNJet] = jaggedVarArrays[jet+"Jet_4vector"][maskGeNJet]
 
+                # i-th jet 4-vector for events with at least njet jets
                 for ijet in range(1, njet+1):
                     sijet = str(ijet)
                     jaggedVarArrays[jet+"Jet"+sijet+"_4vector_"+geNJet] = jaggedVarArrays[jet+"Jet_4vector_"+geNJet][:, ijet-1]
 
+                    # PFcandidate 4-vectors of the i-th jet for events with at least njet jets
                     if self.fileType == "PFnano102X":
-                        if jet == "ak8": prefix = "Fat"
-                        else: prefix = ""
+                        prefix = "Fat" if jet == "ak8" else ""
                         masks[jet+"JetIdx"+sijet+"_"+geNJet] = (get_from_events(events, prefix+"JetPFCands_jetIdx")[maskGeNJet] == ijet-1)
                         mask = masks[jet+"JetIdx"+sijet+"_"+geNJet]  # shorthand
                         jaggedVarArrays[jet+"Jet"+sijet+"PFCands4vector_"+geNJet] = jaggedVarArrays[jet+"JetPFCands4vector"][maskGeNJet][mask]
@@ -557,7 +586,7 @@ class Histogram1(processor.ProcessorABC):
             varArrays["HT"+jet] = ak.sum(jaggedVarArrays[jet+"Jet_pt"], axis=1)
             varArrays["ST"+jet] = varArrays["HT"+jet] + varArrays["MET_pt"]
 
-            # M2
+            # MT
             if self.nJetMax >= 2:
                 geNJet = "ge2" + jet           # shorthand
                 j1j2 = jet+"Jet1_"+jet+"Jet2"  # shorthand
@@ -567,9 +596,8 @@ class Histogram1(processor.ProcessorABC):
                 deltaPhi_j1j2_MET = abs(j1j2_4vector.delta_phi(MET_phi))
                 j1j2_m2 = varArrays[j1j2+"_mass_"+geNJet]**2
                 j1j2_pt = varArrays[j1j2+"_pt_"+geNJet]**2
-                j1j2_pt2 = j1j2_pt**2
                 MET_pt = varArrays["MET_pt_"+geNJet]
-                varArrays["MT"+jet+"_"+geNJet] = np.sqrt( j1j2_m2  +  2 * ( np.sqrt(j1j2_m2 + j1j2_pt2) * MET_pt - MET_pt * j1j2_pt * np.cos(deltaPhi_j1j2_MET) ) )
+                varArrays["MT"+jet+"_"+geNJet] = calc_MT(j1j2_m2, j1j2_pt, MET_pt, deltaPhi_j1j2_MET)
 
             # RT
             varArrays["RT"+jet+"_"+geNJet] = varArrays["MET_pt_"+geNJet] / varArrays["MT"+jet+"_"+geNJet]
