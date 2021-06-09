@@ -2,13 +2,14 @@ import math
 
 
 def get_histogram(tfile, histName):
-    """
-    Return histogram from ROOT file
+    """Return histogram from ROOT file.
 
-    Parameters
-    ----------
-    tfile   : ROOT.TFile
-    histName: str
+    Args:
+	tfile (ROOT.TFile)
+	histName (str)
+
+    Returns:
+        ROOT.TH1
     """
 
     h = tfile.Get(histName)
@@ -18,19 +19,16 @@ def get_histogram(tfile, histName):
 
 
 def get_hist_sum(hist, range_=None):
-    """
-    Return sum of all or some bins of a TH1 histogram.
+    """Return sum of all or some bins of a TH1 histogram.
 
-    Parameters
-    ----------
-    hist: ROOT.TH1D
-    range_: range
-        If None, then sum of all bins, including underflow and overflow bins,
-        is returned
+    Args:
+	hist (ROOT.TH1)
+	range_ (range):
+	    If None, then sum of all bins, including underflow and overflow bins,
+	    is returned
 
-    Returns
-    -------
-    histSum: float
+    Returns:
+        float
     """
 
     histSum = 0
@@ -47,18 +45,16 @@ def get_hist_sum(hist, range_=None):
 
 
 def calc_cumulative_sums(histogram):
-    """
-    Calculate cumulative sum of a TH1 histogram.
-   
-    Parameters
-    ----------
-    histogram: ROOT.TH1D
+    """Calculate cumulative sum of a TH1 histogram.
     
-    Returns
-    -------
-    cumulativeSumLower: list < float >
-    cumulativeSumUpper: list < float >
-    histSum: float
+    Args:
+	histogram (ROOT.TH1D)
+    
+    Returns:
+        tuple:
+	    cumulativeSumLower (list[float])
+	    cumulativeSumUpper (list[float])
+	    histSum (float)
     """
 
     # Calculate number of bins (GetNbins returns number of bins except underflow and overflow bins)
@@ -76,16 +72,13 @@ def calc_cumulative_sums(histogram):
 
 
 def calc_efficiencies(cumulativeSum):
-    """
-    Calculate efficiencies from cumulative sums of the histogram.
+    """Calculate efficiencies from cumulative sums of the histogram.
  
-    Parameters
-    ----------
-    cumulativeSum: list < float >
+    Args:
+	cumulativeSum (list[float])
 
-    Returns
-    -------
-    efficiencies: list < float >
+    Returns:
+        list[float]
     """
 
     efficiencies = {}
@@ -98,17 +91,14 @@ def calc_efficiencies(cumulativeSum):
 
 
 def calc_significance(cumulativeSumSig, cumulativeSumBkg):
-    """
-    Calculate significance given cumulative sum of signal and background histograms.
+    """Calculate significance given cumulative sum of signal and background histograms.
 
-    Parameters
-    ----------
-    cumulativeSumSig: list < float >
-    cumulativeSumBkg: list < float >
+    Args:
+	cumulativeSumSig (list[float])
+	cumulativeSumBkg (list[float])
 
-    Returns
-    -------
-    significance: list < float >
+    Returns:
+        list[float]
     """
 
     nbins = len(cumulativeSumSig) - 2
@@ -138,22 +128,20 @@ def calc_significance(cumulativeSumSig, cumulativeSumBkg):
     
 
 def calc_auc(x, y, percentage=False):
-    """
-    Return AUC given the x and y coordinates of the ROC curve.
+    """Return AUC given the x and y coordinates of the ROC curve.
+
     If percentage=True, then coordinates are cut efficiencies in percentage.
     x and y must be coordinates for increasing cut efficiencies, e.g. from (0, 0) to (1, 1)
     (from (0, 0) to (100, 100) if percentage=True).
     The presence of coordinates (0, 0) and (1, 1) in x and y is facultative.
 
-    Parameters
-    ----------
-    x: list < float >
-    y: list < float >
-    percentage: boolean, optional
+    Args:
+	x (list[float])
+	y (list[float])
+	percentage (bool, optional)
 
-    Returns
-    -------
-    auc: float
+    Returns:
+        float
     """
 
     if len(x) != len(y):

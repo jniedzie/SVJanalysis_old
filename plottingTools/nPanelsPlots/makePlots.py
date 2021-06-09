@@ -23,21 +23,18 @@ def make_x_label(varLabels, name):
 
 
 def calc_cumulative_sums(histogramSigBkg):
-    """
-    Calculate cumulative sum of the signal and background histograms.
+    """Calculate cumulative sum of the signal and background histograms.
 
-    Parameters
-    ----------
-    histogramSigBkg: dict
-        Form of the dict: { "background": ROOT.TH1D, "signal": list < ROOT.TH1D > }
-    
-    Returns
-    -------
-    cumulatives: dict
-        form of the dict:
-        { "lowerBkg": list < float >, "upperBkg": list < float >, "sumBkg": float,
-          "lowerSig": list < list <float> >, "upperSig": list < list <float> >, "sumSig": list < float >
-        }
+    Args:
+	histogramSigBkg (dict): Signals and background histograms:
+            { "background": ROOT.TH1D, "signal": list[ROOT.TH1D] }
+	
+    Returns:
+	dict: cumulative sums for <, >= cuts, for signals and background
+	    form of the dict:
+	    { "lowerBkg": list[float], "upperBkg": list[float],
+	      "lowerSig": list[list[float]], "upperSig": list[list[float]],
+              "sumBkg": float", sumSig": list[float] }
     """
 
     cumulatives = {}
@@ -60,25 +57,20 @@ def calc_cumulative_sums(histogramSigBkg):
 
 
 def calc_efficiencies(cumulatives):
-    """
-    Calculate efficiencies from cumulative sum.
+    """Calculate efficiencies from cumulative sum.
 
-    Parameters
-    ----------
-    cumulatives: dict
-        form of the dict:
-        { "lowerBkg": list < float >, "upperBkg": list < float >, "sumBkg": float,
-          "lowerSig": list < list <float> >, "upperSig": list < list <float> >, "sumSig": list < float >
-        }
+    Args:
+	cumulatives (dict): Cumulative sums for <, >= cuts, for signals and background
+	    form of the dict:
+	    { "lowerBkg": list[float], "upperBkg": list[float],
+	      "lowerSig": list[list[float]], "upperSig": list[list[float]],
+	      "sumBkg": float, "sumSig": list[float] }
 
-    Returns
-    -------
-    effiencies: dict
-        form of the dict:
-        { "lowerBkg": list < float >, "upperBkg": list < float >,
-          "lowerSig": list < list < float > >,  "upperBkg": list < list < float > >
-        }
-
+    Returns:
+	dict: Efficiencies for <, >= cuts, for signals and background
+	    form of the dict:
+	    { "lowerBkg": list[float], "upperBkg": list[float],
+	      "lowerSig": list[list[float]],  "upperBkg": list[list[float]] }
     """
 
     efficiencies = {}
@@ -159,24 +151,23 @@ def read_histograms(variable, rootFiles, processes, nBinsMax=50, normalizeTo1=Tr
     Merge histograms from the different files corresponding to 1 process.
     Histograms are assumed to be correctly normalized to xs*lumi.
 
-    Parameters
-    ----------
-    variable: str
-        Name of the TH1D to get in the NTuple
-    rootFiles: dict < str, list < ROOT.TFile > >
-        Keys are process names
-        Values are list of ROOT.TFile from which to read the histograms
-    processes: dict < str, list < str > >
-    nBinsMax: int
-    normalizeTo1: boolean
-    plotOverflowBin: boolean
+    Args:
+	variable (str): Name of the TH1D to get in the NTuple
+	rootFiles (dict[str, list[ROOT.TFile]]):
+	    Keys are process names
+	    Values are list of ROOT.TFile from which to read the histograms
+	processes (dict[str, list[str]]): List of ROOT files for each process
+	    Keys are process names
+	    Values are list of str path to ROOT files from which to read the histograms
+	nBinsMax (int)
+	normalizeTo1 (bool)
+	plotOverflowBin (boolean)
 
-    Returns
-    -------
-    histograms: dict < str, ROOT.TH1D >
-    histogramSigBkg: dict
-        Form of the dict: { "background": ROOT.TH1D, "signal": list < ROOT.TH1D > }
-    tstack: ROOT.THStack
+    Returns:
+	tuple: tuple containing:
+            histograms (dict[str, ROOT.TH1D]])
+	    histogramSigBkg (dict): { "background": ROOT.TH1D, "signal": list[ROOT.TH1D] }
+	    tstack (ROOT.THStack)
 
     """
 
@@ -450,24 +441,18 @@ def draw_efficiency(binInfo, efficiencies, xlabel):
 ## Main function making 3 panels plots
 
 def makePlot(variable, rootFiles, outputPath, panels):
-    """
-    Make an N panel plot and returns a ROC AUC.
+    """Make an N panel plot and returns a ROC AUC.
 
-    Parameters
-    ----------
-    variable: str
-    rootFiles: dict < str, list < ROOT.TFile > >
-        Keys are process names
-        Values are list of ROOT.TFile from which to read the histograms
-    outputPath: str
-    panels: list < str >
-        Defines, from top to bottom, the subplots to draw
+    Args:
+	variable (str)
+	rootFiles (dict[str, list[ROOT.TFile]]):
+	    Keys are process names
+	    Values are list of ROOT.TFile from which to read the histograms
+	outputPath (str)
+	panels (list[str]): Defines, from top to bottom, the subplots to draw
 
-    Returns
-    -------
-    auc: float
-        The ROC AUC for the specified signal and all the backgrounds combined
-
+    Returns:
+	float: ROC AUC for the specified signal and all the backgrounds combined
     """
 
     histograms, histogramSigBkg, tstack = read_histograms(variable, rootFiles, processes, nBinsMax=NBINS_MAX, normalizeTo1=NORMALIZE_TO_1, plotOverflowBin=PLOT_OVERFLOW_BIN)
