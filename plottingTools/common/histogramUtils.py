@@ -1,21 +1,83 @@
 import math
 
 
-def get_histogram(tfile, histName):
+def get_histogram(tfile, hist_name):
     """Return histogram from ROOT file.
 
     Args:
         tfile (ROOT.TFile)
-        histName (str)
+        hist_name (str)
 
     Returns:
         ROOT.TH1
     """
 
-    h = tfile.Get(histName)
+    h = tfile.Get(hist_name)
     if not h:
-        raise Exception("Failed to load histogram {}.".format(histName))
+        raise Exception("Failed to load histogram {}.".format(hist_name))
     return h
+
+
+def normalize(histogram, norm=1.):
+    """Normalize a TH1 histogram to 1."""
+
+    integral = histogram.Integral()
+    histogram.Scale(norm / integral)
+
+    return
+    
+
+def rebin_histogram(histogram, nbins_max, verbose=False):
+    """Rebin a TH1 histogram such that it has a less than nBinsMax bins.
+
+    Args:
+        histogram (ROOT.TH1)
+        nbins_max (int): Maximum number of bins
+        verbose (bool)
+
+    Returns:
+        int: New number of bins
+
+    """
+
+    xaxis = histogram.GetXaxis()
+    nbins = xaxis.GetNbins()
+    
+    rebin_found = False
+    ngroup = 2
+    while not rebin_found:
+        if nbins%ngroup == 0 and nbins/ngroup < nbins_max:
+            rebin_found = True
+        else:
+            ngroup += 1
+
+    nbins = int(nbins/ngroup)
+    if verbose:
+        print("Rebin histogram with %d groups. New numbers of bins = %d" %(ngroup, nbins))
+    histogram.Rebin(ngroup)
+
+    return nbins
+
+
+def add_overflow_bin_to_last_bin(histogram):
+    """Add content of the overflow bin to the last bin.
+    
+    Args:
+        histogram (ROOT.TH1)
+
+    Returns:
+        None
+    """
+
+    xaxis = histogram.GetXaxis()
+    nbins = xaxis.GetNbins()
+
+    overflow = histogram.GetBinContent(nbins+1)
+    last_bin_content = histogram.GetBinContent(nbins)
+    histogram.SetBinContent(nbins+1, 0.)
+    histogram.SetBinContent(nbins, last_bin_content+overflow)
+
+    return
 
 
 def get_hist_sum(hist, range_=None):
@@ -31,7 +93,7 @@ def get_hist_sum(hist, range_=None):
         float
     """
 
-    histSum = 0
+    hist_sum = 0
 
     if range_ is None:
         xaxis = histogram.GetXaxis()
@@ -39,9 +101,9 @@ def get_hist_sum(hist, range_=None):
         range_ = range(0, nbins+2)
 
     for ibin in range_:
-        histSum += hist.GetBinContent(ibin)
+        hist_sum += hist.GetBinContent(ibin)
 
-    return histSum
+    return hist_sum
 
 
 def calc_cumulative_sums(histogram):
@@ -54,75 +116,75 @@ def calc_cumulative_sums(histogram):
         tuple:
             cumulativeSumLower (list[float])
             cumulativeSumUpper (list[float])
-            histSum (float)
+            hist_sum (float)
     """
 
     # Calculate number of bins (GetNbins returns number of bins except underflow and overflow bins)
     xaxis = histogram.GetXaxis()
     nbins = xaxis.GetNbins()
     # Calculate < cut cumulative sum
-    cumulativeSumLower = [ histogram.GetBinContent(0) ]
+    cumulative_sum_lower = [ histogram.GetBinContent(0) ]
     for ibin in range(1, nbins+2):
-        cumulativeSumLower.append(cumulativeSumLower[-1] + histogram.GetBinContent(ibin))
+        cumulative_sum_lower.append(cumulative_sum_lower[-1] + histogram.GetBinContent(ibin))
     # Calculate > cut cumulative sum
-    histSum = get_hist_sum(histogram, range(0, nbins+2))
-    cumulativeSumUpper = [ histSum - cumulativeSumLower[ibin] for ibin in range(nbins+2) ]
+    hist_sum = get_hist_sum(histogram, range(0, nbins+2))
+    cumulative_sum_upper = [ hist_sum - cumulative_sum_lower[ibin] for ibin in range(nbins+2) ]
 
-    return cumulativeSumLower, cumulativeSumUpper, histSum
+    return cumulative_sum_lower, cumulative_sum_upper, hist_sum
 
 
-def calc_efficiencies(cumulativeSum):
+def calc_efficiencies(cumulative_sum):
     """Calculate efficiencies from cumulative sums of the histogram.
  
     Args:
-        cumulativeSum (list[float])
+        cumulative_sum (list[float])
 
     Returns:
         list[float]
     """
 
     efficiencies = {}
-    sumHistogram = max(cumulativeSum)
-    nbins = len(cumulativeSum) - 2 
+    sum_histogram = max(cumulative_sum)
+    nbins = len(cumulative_sum) - 2 
  
-    efficiencies = [ 100 * cumulativeSum[i]/sumHistogram for i in range(nbins+2) ]
+    efficiencies = [ 100 * cumulative_sum[i]/sum_histogram for i in range(nbins+2) ]
 
     return efficiencies
 
 
-def calc_significance(cumulativeSumSig, cumulativeSumBkg):
+def calc_significance(cumulative_sum_sig, cumulative_sum_bkg):
     """Calculate significance given cumulative sum of signal and background histograms.
 
     Args:
-        cumulativeSumSig (list[float])
-        cumulativeSumBkg (list[float])
+        cumulative_sum_sig (list[float])
+        cumulative_sum_bkg (list[float])
 
     Returns:
         list[float]
     """
 
-    nbins = len(cumulativeSumSig) - 2
+    nbins = len(cumulative_sum_sig) - 2
     
     # If cumulative sums start with zeros
-    if cumulativeSumSig[0] + cumulativeSumBkg[0] == 0:
+    if cumulative_sum_sig[0] + cumulative_sum_bkg[0] == 0:
         ibin0 = 1
-        while cumulativeSumSig[ibin0] + cumulativeSumBkg[ibin0] == 0:
+        while cumulative_sum_sig[ibin0] + cumulative_sum_bkg[ibin0] == 0:
             ibin0 += 1
         part = ibin0 * [0.]
         range_ = range(ibin0, nbins+2)
-        significance = part + [ cumulativeSumSig[ibin] / math.sqrt(cumulativeSumSig[ibin] + cumulativeSumBkg[ibin]) for ibin in range_ ]
+        significance = part + [ cumulative_sum_sig[ibin] / math.sqrt(cumulative_sum_sig[ibin] + cumulative_sum_bkg[ibin]) for ibin in range_ ]
 
     # If cumulative sums ends with zeros
-    elif cumulativeSumSig[nbins+1] + cumulativeSumBkg[nbins+1] == 0:
+    elif cumulative_sum_sig[nbins+1] + cumulative_sum_bkg[nbins+1] == 0:
         ibin0 = nbins
-        while cumulativeSumSig[ibin0] + cumulativeSumBkg[ibin0] == 0:
+        while cumulative_sum_sig[ibin0] + cumulative_sum_bkg[ibin0] == 0:
             ibin0 -= 1
         part = (nbins-ibin0) * [0.]
         range_ = range(0, ibin0+1)
-        significance = [ cumulativeSumSig[ibin] / math.sqrt(cumulativeSumSig[ibin] + cumulativeSumBkg[ibin]) for ibin in range_ ] + part
+        significance = [ cumulative_sum_sig[ibin] / math.sqrt(cumulative_sum_sig[ibin] + cumulative_sum_bkg[ibin]) for ibin in range_ ] + part
     
     else:
-        significance = [ cumulativeSumSig[ibin] / math.sqrt(cumulativeSumSig[ibin] + cumulativeSumBkg[ibin]) for ibin in range(nbins+2) ]
+        significance = [ cumulative_sum_sig[ibin] / math.sqrt(cumulative_sum_sig[ibin] + cumulative_sum_bkg[ibin]) for ibin in range(nbins+2) ]
 
     return significance
     
