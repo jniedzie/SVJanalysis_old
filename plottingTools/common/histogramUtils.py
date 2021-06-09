@@ -5,8 +5,8 @@ def get_histogram(tfile, histName):
     """Return histogram from ROOT file.
 
     Args:
-	tfile (ROOT.TFile)
-	histName (str)
+        tfile (ROOT.TFile)
+        histName (str)
 
     Returns:
         ROOT.TH1
@@ -22,10 +22,10 @@ def get_hist_sum(hist, range_=None):
     """Return sum of all or some bins of a TH1 histogram.
 
     Args:
-	hist (ROOT.TH1)
-	range_ (range):
-	    If None, then sum of all bins, including underflow and overflow bins,
-	    is returned
+        hist (ROOT.TH1)
+        range_ (range):
+            If None, then sum of all bins, including underflow and overflow bins,
+            is returned
 
     Returns:
         float
@@ -48,13 +48,13 @@ def calc_cumulative_sums(histogram):
     """Calculate cumulative sum of a TH1 histogram.
     
     Args:
-	histogram (ROOT.TH1D)
+        histogram (ROOT.TH1D)
     
     Returns:
         tuple:
-	    cumulativeSumLower (list[float])
-	    cumulativeSumUpper (list[float])
-	    histSum (float)
+            cumulativeSumLower (list[float])
+            cumulativeSumUpper (list[float])
+            histSum (float)
     """
 
     # Calculate number of bins (GetNbins returns number of bins except underflow and overflow bins)
@@ -75,7 +75,7 @@ def calc_efficiencies(cumulativeSum):
     """Calculate efficiencies from cumulative sums of the histogram.
  
     Args:
-	cumulativeSum (list[float])
+        cumulativeSum (list[float])
 
     Returns:
         list[float]
@@ -94,8 +94,8 @@ def calc_significance(cumulativeSumSig, cumulativeSumBkg):
     """Calculate significance given cumulative sum of signal and background histograms.
 
     Args:
-	cumulativeSumSig (list[float])
-	cumulativeSumBkg (list[float])
+        cumulativeSumSig (list[float])
+        cumulativeSumBkg (list[float])
 
     Returns:
         list[float]
@@ -136,9 +136,9 @@ def calc_auc(x, y, percentage=False):
     The presence of coordinates (0, 0) and (1, 1) in x and y is facultative.
 
     Args:
-	x (list[float])
-	y (list[float])
-	percentage (bool, optional)
+        x (list[float])
+        y (list[float])
+        percentage (bool, optional)
 
     Returns:
         float
