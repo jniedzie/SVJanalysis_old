@@ -1,7 +1,7 @@
 import awkward as ak
 
 
-def divide_ak_arrays(ak_array1, ak_array2, division_by_zero_value=1.):
+def divide_ak_arrays(ak_array1, ak_array2, division_by_zero_value=1., verbose=False):
     """Makes the division of an ak array by another one.
     
     The arrays ak_array1 and ak_array2 must have the same jagged structure.
@@ -14,6 +14,7 @@ def divide_ak_arrays(ak_array1, ak_array2, division_by_zero_value=1.):
         ak_array1 (awkward.Array[float])
         ak_array2 (awkward.Array[float]) 
         division_by_zero_value (float, optional, default=1.)
+        verbose (bool, optional, default=False)
 
     Returns:
         awkward.Array[float]: ak_array1 / ak_array2
@@ -26,7 +27,7 @@ def divide_ak_arrays(ak_array1, ak_array2, division_by_zero_value=1.):
     """
 
     is_not_zero = (ak_array2!=0.)
-    if (not ak.all(is_not_zero)):
+    if (not ak.all(is_not_zero)) and verbose:
         print("The following warning about true_divide can be safely ignored.")
 
     raw_division = ak_array1/ak_array2
