@@ -4,7 +4,7 @@ import numpy as np
 import sys
 
 
-sys.path.append("../pythonUtils/")
+sys.path.append("../../pythonUtils/")
 import awkwardArrayUtils as akutl
 
 

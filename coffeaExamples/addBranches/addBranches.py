@@ -1,20 +1,10 @@
-import coffea as cf
 from coffea import processor
 from coffea.nanoevents import BaseSchema, NanoAODSchema, PFNanoAODSchema
-#from coffea.nanoevents import BaseSchema, NanoAODSchema
 import awkward as ak
-import awkward0 as ak0
-import uproot
 import uproot3
 import numpy as np
 import time
 import argparse
-import os
-import sys
-import json
-
-sys.path.append("../pythonUtils/")
-import utilities as utl
 import processorAddBranches
 
 
@@ -78,8 +68,7 @@ def make_events_branches(accumulator, debug):
 
 
 def write_root_file(accumulator, output_file, debug):
-    """
-    """
+    """Write a test.root ROOT file with the new branches."""
 
     output_file = "test.root" # For test purposes
 
@@ -125,7 +114,6 @@ def main(input_file, processor_name, schema, pf_nano_aod_version, chunksize, max
         )
 
     ## Making output ROOT file
-    # if output not empty:
     write_root_file(output, input_file, debug)
 
 
