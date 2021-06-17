@@ -98,13 +98,11 @@ def main(input_file, processor_name, schema, pf_nano_aod_version, chunksize, max
     ## Fileset
     fileset = { "fileset": [input_file] }
 
-    print(processorAddBranches)
-
     ## Make pre-selections
     output = processor.run_uproot_job(
         fileset,
         treename = "Events",
-        processor_instance = getattr(processorAddBranches, processor_name)(schema, pf_nano_aod_version),
+        processor_instance = getattr(processorBranchesMaker, processor_name)(schema, pf_nano_aod_version),
         executor = processor.iterative_executor,
         executor_args = {"schema": eval(schema+"Schema"), "workers": nworkers},
         chunksize = chunksize,
