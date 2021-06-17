@@ -5,7 +5,7 @@ import uproot3
 import numpy as np
 import time
 import argparse
-import processorAddBranches
+import processorBranchesMaker
 
 
 def make_input_files_list(input_files):
@@ -58,10 +58,8 @@ def make_events_branches(accumulator, debug):
                 branches[k] = ak.to_awkward0(ak.Array(v.value))
                 branches_init[k] = uproot3.newbranch(v.value.dtype)
         else:
-            if k in len_keys:
-                branches[k] = ak.to_awkward0(ak.Array(v.value))
-            else:
-                branches[k] = ak.to_awkward0(ak.Array(v.value))
+            branches[k] = ak.to_awkward0(ak.Array(v.value))
+            if k not in len_keys:
                 branches_init[k] = uproot3.newbranch(v.value.dtype)
 
     return branches, branches_init
@@ -179,7 +177,7 @@ if __name__ == "__main__":
     ## Get list of input ROOT files
     input_files = make_input_files_list(args.inputfiles)
 
-    ## Make pre-selection
+    ## Make new branches
     for input_file in input_files:
         main(input_file, args.processor, args.schema, args.pfnanoaodversion, args.chunksize, args.maxchunks, args.nworkers, args.debug)
 

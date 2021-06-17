@@ -3,9 +3,9 @@ import awkward as ak
 import numpy as np
 import sys
 
-
 sys.path.append("../../pythonUtils/")
 import awkwardArrayUtils as akutl
+
 
 
 ## Define some short-hands for column and value accumulator
@@ -17,8 +17,7 @@ def calculate_ptD(pf_cands):
     """Calculate ptD for each jet in all events.
 
     Calculate ptD for each jet in all events using optimized columnar
-    operations. However, cannot avoid copy of the array at the end to
-    transpose / swap axes of the ak array.
+    operations.
 
     Args:
         pf_cands (awkward.Array):
@@ -30,8 +29,8 @@ def calculate_ptD(pf_cands):
 
     Examples:
         >>> pf_cands_idx = ak.Array([[0,0,1,1,1,2,2,2], [0,0,1,2,2,3]])
-        >>> jet_cands_pt = ak.Array([[180,150,150,130,70,180,100,20], [500, 300, 400, 300, 250, 100]])
-        >>> pf_cands = ak.zip({"jetIdx": jet_cands_idx, "pt": jet_cands_pt})
+        >>> pf_cands_pt = ak.Array([[180,150,150,130,70,180,100,20], [500, 300, 400, 300, 250, 100]])
+        >>> pf_cands = ak.zip({"jetIdx": pf_cands_idx, "pt": pf_cands_pt})
         >>> calculate_ptD(pf_cands)
         [[0.71, 0.601, 0.69], [0.729, 1, 0.71, 1]]
     """
@@ -93,45 +92,4 @@ def get_n_fat_jet(events, schema):
     elif schema == "PFNanoAOD":
         return ak.count(events.FatJet.pt, axis=1)
 
-
-class BranchesMaker(processor.ProcessorABC):
-    """Example for calculating ptD."""
-
-
-    def __init__(self, schema, pf_nano_aod_version):
-
-        self.schema = schema
-        self.pf_nano_aod_version = pf_nano_aod_version
-
-        branches = { 
-            "FatJet_ptD"      : column_accumulator(np.float64),
-            "nFatJet"         : column_accumulator(np.float64),
-        }
- 
-        ## Define accumulator
-        self._accumulator = processor.dict_accumulator({
-            **branches
-            })
-
-
-    @property
-    def accumulator(self):
-        return self._accumulator
-
-
-    def process(self, events):
-        """Compute new quantities to be added to the NTuple."""
-
-        ## Define accumulator
-        output = self.accumulator.identity()
-
-        pf_cands = get_pf_cands(events, self.schema, self.pf_nano_aod_version)
-        output["FatJet_ptD"] = processor.column_accumulator(np.array(ak.to_list(calculate_ptD(pf_cands)), dtype=object))
-        output["nFatJet"] = processor.column_accumulator(ak.to_numpy(get_n_fat_jet(events, self.schema)))
-
-        return output
-
-
-    def postprocess(self, accumulator):
-        return accumulator
 
