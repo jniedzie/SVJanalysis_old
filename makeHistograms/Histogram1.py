@@ -24,14 +24,52 @@ def make_pairs(n):
 
 
 class Histogram1(HistogramDefault):
-    """
-    Make histograms of selected variables in input ROOT file.
-    If variable does not exist in ROOT file, they are computed on the fly (e.g. HT, MET/HT, ...).
+    """Coffea processor for accumulating histograms of selected variables.
+
+    Some variables are directly read from the ROOT file while other are
+    computed on the fly.
+
+    This must implement the following methods:
+        * __init__
+        * initialize_ak_arrays
+        * initialize_gen_weights
+
+    __init__ defines the following attributes:
+        * self.njet_max
+        * self.jets
+        * self.variables
+        * self.gen_weights_info
+        * self.cuts
+        * self._accumulator
+        * self.file_type (will soon be obsolete when using 106X PFNanoAOD format only)
+
+    initialize_ak_arrays returns the following objects:
+        * var_arrays (dict): arrays for all variables
+        * masks (dict): masks used for the necessary cuts to define some variables
+
+    initialize_gen_weights returns the following objects:
+        * gen_weights(dict): generator weights for all variables
     """
 
 
     def __init__(self, binning_info, file_type):
-        """Define the variables to histogram, their binning and their coffea histogram object."""
+        """Define the variables to histogram, their binning and their coffea histogram object.
+
+        Args:
+            binning_info (dict): Form of the dictionary:
+		{
+		    "noregex": {
+			"ak8Jet1_ak8Jet2_mass"  :  [500  ,  0   , 5000 ],
+		    },
+		    "regex": {
+			"ak[48]Jet_n"           :  [20   ,  0   , 20   ],
+		    }
+		}
+            file_type (str)
+
+        Returns:
+            None
+        """
 
         self.binning_info = binning_info
         self.file_type = file_type
@@ -180,9 +218,19 @@ class Histogram1(HistogramDefault):
 
 
     def initialize_ak_arrays(self, events):
-        """Fill a dict with the ak arrays that will be used to fill the histograms."""
+        """Read or compute all variables to histogram.
 
- 
+        Read or compute all variables to histogram.
+        Make masks for the cuts necessary to define some variables.
+
+        Args:
+            events (ak.Array): the Events TTree open with uproot.
+        
+        Returns:
+            (tuple) tuple containing:
+                var_arrays (dict[str, ak.Array])
+                masks (dict[str, ak.Array])
+        """
 
         ## Define dict storing the different arrays
         var_arrays = {}
@@ -264,7 +312,7 @@ class Histogram1(HistogramDefault):
             for njet in range(1, self.njet_max+1):
 
                 ge_njet = "ge" + str(njet) + jet   # shorthand
-                maskGeNJet = masks[ge_njet]        # shorthand
+                mask_ge_njet = masks[ge_njet]        # shorthand
 
                 # delta R, phi eta between any pair of jets
                 # mass and pt of any pair of jets
@@ -308,9 +356,9 @@ class Histogram1(HistogramDefault):
             # MET for different cuts
             for njet in range(1, self.njet_max+1):
                 ge_njet = "ge" + str(njet) + jet   # shorthand
-                maskGeNJet = masks[ge_njet]        # shorthand
-                var_arrays["MET_pt_"+ge_njet] = var_arrays["MET_pt"][maskGeNJet]
-                var_arrays["MET_phi_"+ge_njet] = var_arrays["MET_phi"][maskGeNJet]
+                mask_ge_njet = masks[ge_njet]        # shorthand
+                var_arrays["MET_pt_"+ge_njet] = var_arrays["MET_pt"][mask_ge_njet]
+                var_arrays["MET_phi_"+ge_njet] = var_arrays["MET_phi"][mask_ge_njet]
 
             # HT, ST
             var_arrays["HT"+jet] = ak.sum(jagged_var_arrays[jet+"Jet_pt"], axis=1)
@@ -332,18 +380,26 @@ class Histogram1(HistogramDefault):
             var_arrays["METrST"+jet] = var_arrays["MET_pt"] / var_arrays["ST"+jet]
             for njet in range(1, self.njet_max+1):
                 ge_njet = "ge" + str(njet) + jet   # shorthand
-                maskGeNJet = masks[ge_njet]        # shorthand
-                var_arrays["HT"+jet+"_"+ge_njet] = var_arrays["HT"+jet][maskGeNJet]
-                var_arrays["ST"+jet+"_"+ge_njet] = var_arrays["ST"+jet][maskGeNJet]
-                var_arrays["METrHT"+jet+"_"+ge_njet] = var_arrays["MET_pt"][maskGeNJet] / var_arrays["HT"+jet][maskGeNJet]
-                var_arrays["METrST"+jet+"_"+ge_njet] = var_arrays["MET_pt"][maskGeNJet] / var_arrays["ST"+jet][maskGeNJet]
+                mask_ge_njet = masks[ge_njet]        # shorthand
+                var_arrays["HT"+jet+"_"+ge_njet] = var_arrays["HT"+jet][mask_ge_njet]
+                var_arrays["ST"+jet+"_"+ge_njet] = var_arrays["ST"+jet][mask_ge_njet]
+                var_arrays["METrHT"+jet+"_"+ge_njet] = var_arrays["MET_pt"][mask_ge_njet] / var_arrays["HT"+jet][mask_ge_njet]
+                var_arrays["METrST"+jet+"_"+ge_njet] = var_arrays["MET_pt"][mask_ge_njet] / var_arrays["ST"+jet][mask_ge_njet]
 
 
         return var_arrays, masks
 
 
     def initialize_gen_weights(self, events, masks):
-        """Make events gen weights for the different variables."""
+        """Make events gen weights for the different variables.
+
+        Args:
+            events (ak.Array): the Events TTree open with uproot.
+            masks (dict[str, ak.Array])
+
+        Returns:
+            dict[str, ak.Array]
+        """
 
         gen_weights = {}
         gen_weights["noCut"] = events["genWeight"]

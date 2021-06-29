@@ -13,11 +13,52 @@ from HistogramDefault import HistogramDefault
 
 
 class Histogram2(HistogramDefault):
-    """Make histograms of additional variables in input ROOT file."""
+    """Coffea processor for accumulating histograms of selected variables.
+
+    Some variables are directly read from the ROOT file while other are
+    computed on the fly.
+
+    This must implement the following methods:
+        * __init__
+        * initialize_ak_arrays
+        * initialize_gen_weights
+
+    __init__ defines the following attributes:
+        * self.njet_max
+        * self.jets
+        * self.variables
+        * self.gen_weights_info
+        * self.cuts
+        * self._accumulator
+        * self.file_type (will soon be obsolete when using 106X PFNanoAOD format only)
+
+    initialize_ak_arrays returns the following objects:
+        * var_arrays (dict): arrays for all variables
+        * masks (dict): masks used for the necessary cuts to define some variables
+
+    initialize_gen_weights returns the following objects:
+        * gen_weights(dict): generator weights for all variables
+    """
 
 
     def __init__(self, binning_info, file_type):
-        """Define the variables to histogram, their binning and their coffea histogram object."""
+        """Define the variables to histogram, their binning and their coffea histogram object.
+
+        Args:
+            binning_info (dict): Form of the dictionary:
+		{
+		    "noregex": {
+			"ak8Jet1_ak8Jet2_mass"  :  [500  ,  0   , 5000 ],
+		    },
+		    "regex": {
+			"ak[48]Jet_n"           :  [20   ,  0   , 20   ],
+		    }
+		}
+            file_type (str)
+
+        Returns:
+            None
+        """
 
         self.binning_info = binning_info
         self.file_type = file_type
@@ -78,9 +119,20 @@ class Histogram2(HistogramDefault):
 
 
     def initialize_ak_arrays(self, events):
-        """Fill a dict with the ak arrays that will be used to fill the histograms."""
+        """Read or compute all variables to histogram.
 
- 
+        Read or compute all variables to histogram.
+        Make masks for the cuts necessary to define some variables.
+
+        Args:
+            events (ak.Array): the Events TTree open with uproot.
+        
+        Returns:
+            (tuple) tuple containing:
+                var_arrays (dict[str, ak.Array])
+                masks (dict[str, ak.Array])
+        """
+
         ## Define dict storing the different arrays
         var_arrays = {}
         jagged_var_arrays = {}
@@ -121,7 +173,15 @@ class Histogram2(HistogramDefault):
 
 
     def initialize_gen_weights(self, events, masks):
-        """Make events gen weights for the different variables."""
+        """Make events gen weights for the different variables.
+
+        Args:
+            events (ak.Array): the Events TTree open with uproot.
+            masks (dict[str, ak.Array])
+
+        Returns:
+            dict[str, ak.Array]
+        """
 
         gen_weights = {}
         gen_weights["noCut"] = events["genWeight"]

@@ -8,6 +8,28 @@ import utilities as utl
 
 
 class HistogramDefault(processor.ProcessorABC):
+    """Parent class for coffea processors accumulating histograms.
+
+    Children classes must implement the following methods:
+        * __init__
+        * initialize_ak_arrays
+        * initialize_gen_weights
+
+    __init__ must define the following attributes:
+        * self.variables
+        * self.gen_weights_info
+        * self.cuts
+        * self._accumulator
+        * self.file_type (will soon be obsolete when using 106X PFNanoAOD format only)
+
+    initialize_ak_arrays must return the following objects:
+        * var_arrays (dict): arrays for all variables
+        * masks (dict): masks used for the necessary cuts to define some variables
+
+    initialize_gen_weights must return the following objects:
+        * gen_weights(dict): generator weights for all variables
+    """
+
 
     def __init__(self):
         pass
@@ -56,12 +78,22 @@ class HistogramDefault(processor.ProcessorABC):
 
     def make_variables_names(self, variables_descriptions):
         """
-        Make variables based on the following description from a collection of templates and list of
-        params to be replaced by a given value:
-        e.g. "variables_descriptions = [ ( "{jet}Jet_n",  [ {"jet": "ak4"}, {"jet": "ak8"} ] ),
-                                          "{jet}Jet_pt", [ {"jet": "ak4"}, {"jet": "ak8"} ] ),
-                                      ]
+        Make variables based on a list of templates associated with a list of
+        parameters to be replaced by a given value.
 
+        Args:
+            variables_descriptions (list[tuple[str, list[dict]]])
+
+        Returns:
+            list[str]
+
+        Examples:
+            >>> variables_descriptions =
+                [ ( "{jet}Jet_n",  [ {"jet": "ak4"}, {"jet": "ak8"} ] ),
+                    "{jet}Jet_pt", [ {"jet": "ak4"} ] ),
+                ]
+            >>> make_variables_names(variables_descriptions)
+            ["ak4Jet_n", "ak8Jet_n", "ak4Jet_pt"]
         """
 
         variables = []
@@ -80,16 +112,17 @@ class HistogramDefault(processor.ProcessorABC):
 
 
     def get_binning(self):
-        """
-        Return binning for all variables.
-        binning = {
-            "noregex": {
-                "ak8J1_ak8J2_mass"  :  [500  ,  0   , 5000 ],
-            },
-            "regex": {
-                "n(Ak8)?Jet"        :  [20   ,  0   , 20   ],
-            }
-        }
+        """Return binning for all variables.
+
+        Form of self.binning:
+            {
+		"noregex": {
+		    "ak8Jet1_ak8Jet2_mass"  :  [500  ,  0   , 5000 ],
+		},
+		"regex": {
+		    "ak[48]Jet_n"           :  [20   ,  0   , 20   ],
+		}
+	    }
         """
 
         self.binning = {}
@@ -119,6 +152,8 @@ class HistogramDefault(processor.ProcessorABC):
 
 
     def define_histograms(self):
+        """Define a dict with coffea histograms."""
+
         self.histograms = {}
 
         # Loop over all variables to histogram
@@ -151,9 +186,20 @@ class HistogramDefault(processor.ProcessorABC):
             print("ERROR: Variable %s is not defined in the coffea accumulator!" %variable)
             sys.exit()
      
+        return
+
 
     def fill_histograms(self, var_arrays, gen_weights, output):
-        """Fill histograms."""
+        """Fill all histograms.
+  
+        Args:
+            var_arrays (dict[str, ak.Array])
+            gen_weights (dict[str, ak.Array])
+            output (coffea.processor.dict_accumulator)
+
+        Returns:
+            None
+        """
 
         size2gen = {}
         for key in gen_weights.keys():
@@ -202,31 +248,31 @@ class HistogramDefault(processor.ProcessorABC):
     def process(self, events):
         """Make arrays and gen_weights for all interesting variable, and fill histograms."""
 
-        ## Define accumulator
+        # Define accumulator
         output = self.accumulator.identity()
 
-        ## Make var_arrays that will be used to fill histograms
-        #  Also return masks used, will be useful for making gen weights
+        # Make var_arrays that will be used to fill histograms
+        # Also return masks used, will be useful for making gen weights
         var_arrays, masks = self.initialize_ak_arrays(events)
 
-        ## Running some sanity checks
+        # Running some sanity checks
         check_passed = self.check_dict_keys(self.variables, var_arrays, "variable", "ak array", error_keys_dict1_not_in_keys_dict2=False)
         if not check_passed:
             print("\nWARNING: Only variable defined in constructor will be histogrammed.")
 
-        ## Make gen weights
+        # Make gen weights
         gen_weights = self.initialize_gen_weights(events, masks)
 
-        ## Make sum of gen weights
-        # Make the sum of gen weights for the cuts defined in contructors
+        # Calculate the sum of gen weights for the cuts defined in contructors
         sum_gen_weights = {}
         for cut in self.cuts:
             sum_gen_weights[cut] = ak.sum(gen_weights[cut])
+
         # Save cutflow information
         for cut in self.cuts:
             output["cutflow"][cut] += sum_gen_weights[cut]
 
-        ## Fill histograms
+        # Fill histograms
         self.fill_histograms(var_arrays, gen_weights, output)
 
         return output
