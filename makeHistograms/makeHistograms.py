@@ -10,9 +10,9 @@ import os
 import sys
 import json
 
-sys.path.append("../pythonUtils/")
+sys.path.append("../utilities/")
 import utilities as utl
-import processorHistogram as procHist
+import processorHistograms as procHist
 
 
 def print_cutflow(cutflow, histogramKeys):
@@ -57,7 +57,7 @@ def calculate_efficiency(fileset, efficiencyBranch, genWeightBranch="Events/genW
     return efficiency
 
 
-def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, efficiency):
+def write_root_file(accumulator, rootFileName, cutflow, lumi, xSection, efficiency):
     """
     Write histograms, stored in a coffea accumulator, to a ROOT file.
     Number of generated events (cutflow), pre-selection cut efficiency (efficiency), luminosity (lumi)
@@ -65,10 +65,10 @@ def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, ef
     """
 
     # Need to use uproot3 because it is not implemented yet in uproot4 (Feb. 2021)
-    print("\nWill %s ROOT file %s\n" %(mode.lower(), rootFileName))
+    print("\nWill recreate ROOT file %s\n" %rootFileName)
 
     writtenHists = []
-    with getattr(uproot3, mode)(rootFileName) as f:    # Create/update output file
+    with uproot3.recreate(rootFileName) as f:    # Create/update output file
         for variable, hist in accumulator.items():
             if isinstance(hist, cf.hist.Hist):
                 hist.scale(lumi * xSection * efficiency / cutflow["noCut"])
@@ -82,7 +82,7 @@ def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, ef
     return
 
 
-def main(mode, binning, sample, fileType, processor, outputDirectory, lumi, useEfficiencies, efficiencyBranch):
+def main(binning, sample, fileType, processor, chunksize, maxchunks, nworkers, outputDirectory, lumi, useEfficiencies, efficiency):
 
     ## Get sample name and cross-section
     sampleName = sample["name"]
@@ -99,14 +99,16 @@ def main(mode, binning, sample, fileType, processor, outputDirectory, lumi, useE
         treename = "Events",
         processor_instance = getattr(procHist, processor)(binning, fileType),
         executor = cf.processor.iterative_executor,
-        executor_args = {"schema": cf.nanoevents.BaseSchema, "workers": 4},
-        chunksize = 100000,
-        maxchunks = None,
+        executor_args = {"schema": cf.nanoevents.BaseSchema, "workers": nworkers},
+        chunksize = chunksize,
+        maxchunks = maxchunks,
     )
 
     ## Efficiencies
     if useEfficiencies:
-        efficiency = calculate_efficiency(sample["fileset"], efficiencyBranch)
+        if isinstance(efficiency, str):
+            efficiency = calculate_efficiency(sample["fileset"], efficiency)
+        # else efficiency is a float that already corresponds to the efficiency
     else:
         efficiency = 1.
 
@@ -118,7 +120,7 @@ def main(mode, binning, sample, fileType, processor, outputDirectory, lumi, useE
 
     ## Save histograms to ROOT file
     rootFileName = outputDirectory + sampleName + ".root"
-    write_root_file(output, rootFileName, mode, cutflow, lumi, xSection, efficiency)
+    write_root_file(output, rootFileName, cutflow, lumi, xSection, efficiency)
 
     return
 
@@ -129,11 +131,6 @@ if __name__ == "__main__":
 
     ## Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-m", "--mode",
-        help="Mode in which to open the output ROOT file. Choices: recreate (default), update",
-        choices=["recreate", "update"], default="recreate"
-        )
     parser.add_argument(
         "-b", "--binning",
         help="json file describing binning of the histograms",
@@ -158,6 +155,21 @@ if __name__ == "__main__":
         "-p", "--processor",
         help="Coffea processor to be used, as defined in processorHistogram.py",
         required=True
+        )
+    parser.add_argument(
+        "-c", "--chunksize",
+        help="Size of the data chunks (default=100000)",
+        default=100000, type=int
+        )
+    parser.add_argument(
+        "-m", "--maxchunks",
+        help="Maximum number of chunks to process, no flag means no maximum",
+        type=int
+        )
+    parser.add_argument(
+        "-n", "--nworkers",
+        help="Number of worker nodes (default=4)",
+        default=4, type=int
         )
     parser.add_argument(
         "-o", "--outputDirectory",
@@ -199,10 +211,13 @@ if __name__ == "__main__":
     ## Efficiencies
     if args.efficiency == "False":
         useEfficiencies = False
-        efficiencyBranch = None
+        efficiency = None
     else:
         useEfficiencies = True
-        efficiencyBranch = args.efficiency
+        if args.efficiency.replace(".", "").isdigit():
+            efficiency = float(args.efficiency)
+        else:
+            efficiency = args.efficiency
 
     ## Loop over all samples
     for sampleName in samplesNames:
@@ -230,7 +245,7 @@ if __name__ == "__main__":
             fileType = args.fileType
 
         # Make histograms
-        main(args.mode, binning, sample, fileType, args.processor, outputDirectory, float(args.lumi), useEfficiencies, efficiencyBranch)
+        main(binning, sample, fileType, args.processor, args.chunksize, args.maxchunks, args.nworkers, outputDirectory, float(args.lumi), useEfficiencies, efficiency)
 
 
     elapsed = time.time() - tstart
