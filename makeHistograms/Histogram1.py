@@ -13,16 +13,6 @@ from HistogramDefault import HistogramDefault
 
       
 
-def make_pairs(n):
-    """Return pairs of distinct integers from {0, 1, ...n}."""
-
-    pairs = []
-    for i1 in range(n-1):
-        for i2 in range(i1+1, n):
-            pairs.append([i1, i2])
-    return pairs
-
-
 class Histogram1(HistogramDefault):
     """Coffea processor for accumulating histograms of selected variables.
 
@@ -116,7 +106,7 @@ class Histogram1(HistogramDefault):
         it6 = []
         for jet in self.jets:
            for njet in range(2, self.njet_max+1):
-               for ijet1, ijet2 in make_pairs(njet):
+               for ijet1, ijet2 in init_helper.make_pairs(njet):
                    it6.append({"jet": jet, "cut": "ge"+str(njet)+jet, "n1": str(ijet1+1), "n2": str(ijet2+1)})
 
         ## Iterable over jet and cuts 
@@ -317,7 +307,7 @@ class Histogram1(HistogramDefault):
                 # delta R, phi eta between any pair of jets
                 # mass and pt of any pair of jets
                 if njet >= 2:
-                    for ijet1, ijet2 in make_pairs(njet):
+                    for ijet1, ijet2 in init_helper.make_pairs(njet):
                         # shorthands
                         sijet1 = str(ijet1+1)
                         sijet2 = str(ijet2+1)
