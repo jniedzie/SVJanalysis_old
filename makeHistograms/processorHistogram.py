@@ -14,41 +14,7 @@ ak.behavior.update(vector.behavior)
 
 sys.path.append("../pythonUtils/")
 import utilities as utl
-
-
-def divide_ak_arrays(akArray1, akArray2, divisionByZeroValue=1.):
-    """
-    Makes the division of an ak array by another one.
-    The arrays must have the same jagged structure.
-    Example: akArray1 = [ [0, 3], [5], [2] ] akArray2 = [ [3, 3], [0], [1] ]
-             division = [ [0, 1], [1], [0.5] ]
-
-    Parameters
-    ----------
-    akArray1: awkward.Array < float >
-    akArray2: awkward.Array < float > 
-    divisionByZeroValue: float, optional, default=1.
-        If division by zero, the default value to use (see example)
-
-    Returns
-    -------
-    division: awkward.Array < float >
-        division = akArray1 / akArray2
-        Has the same jagged structure as the input ak arrays
-    """
-
-    isNotZero = (akArray2!=0.)
-    if (not ak.all(isNotZero)):
-        print("The following warning about true_divide can be safely ignored.")
-
-    rawDivision = akArray1/akArray2
-    division = ak.where(isNotZero, rawDivision, divisionByZeroValue*ak.ones_like(akArray1))
-
-    # This implementation seems slower:
-    #division = ak.Array([ [ x1/x2 if x2 != 0. else divisionByZeroValue for x1, x2 in zip(y1, y2) ] for y1, y2 in zip(akArray1, akArray2) ])
-
-    return division
-
+import awkwardArrayUtils as akutl
 
 
 def get_from_events(events, branchName):
@@ -388,25 +354,23 @@ class Histogram1(processor.ProcessorABC):
         """Fill a dict with the ak arrays that will be used to fill the histograms."""
 
         def compute_tau_ratios(events, tauRatioBranchName, tauAVariableName, tauBVariableName, tauRatioVariableName, jaggedVarArrays, varArrays):
-            """
-            Read tauRatio=tauA/tauB if available in tree or compute it on the fly if not.
+            """Read tauRatio=tauA/tauB if available in tree or compute it on the fly if not.
             
-            Parameters
-            ----------
-            events: ak.Array
-            tauRatioBranchName: str
-            tauAVariableName: str
-            tauBVariableName: str
-            tauRatioVariableName: str
-            jaggedVarArrays: ak.Array
-            varArrays: ak.Array
+            Args:
+                events (ak.Array)
+                tauRatioBranchName (str)
+                tauAVariableName (str)
+                tauBVariableName (str)
+                tauRatioVariableName (str)
+                jaggedVarArrays (ak.Array)
+                varArrays (ak.Array)
             """
 
             if get_from_events(events, tauRatioBranchName) is not None:
                 jaggedVarArrays[tauRatioBranchName] = get_from_events(events, tauRatioBranchName)
                 varArrays[tauRatioBranchName] = ak.flatten(jaggedVarArrays[tauRatioBranchName])
             elif (varArrays[tauAVariableName] is not None) and (varArrays[tauBVariableName] is not None):
-                jaggedVarArrays[tauRatioVariableName] = divide_ak_arrays(jaggedVarArrays[tauAVariableName], jaggedVarArrays[tauBVariableName])
+                jaggedVarArrays[tauRatioVariableName] = akutl.divide_ak_arrays(jaggedVarArrays[tauAVariableName], jaggedVarArrays[tauBVariableName])
                 varArrays[tauRatioVariableName] = ak.flatten(jaggedVarArrays[tauRatioVariableName])
             else:
                 jaggedVarArrays[tauRatioVariableName] = None
