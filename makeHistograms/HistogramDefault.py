@@ -111,7 +111,7 @@ class HistogramDefault(processor.ProcessorABC):
 
 
 
-    def get_binning(self):
+    def make_binning(self):
         """Return binning for all variables.
 
         Form of self.binning:
@@ -168,7 +168,17 @@ class HistogramDefault(processor.ProcessorABC):
 
 
     def fill_histogram(self, output, variable, axis, weight):
-        """Fill histogram if the variable has been defined."""
+        """Fill histogram if the variable has been defined.
+
+        Args:
+            output (dict[str, coffea.hist.Hist]): mutable object modified in this function
+            variable (str)
+            axis (ak.Array)
+            weight (ak.Array)
+
+        Returns:
+            None
+        """
 
         type1 = str(ak.type(axis))
         type2 = str(ak.type(weight))
@@ -195,7 +205,7 @@ class HistogramDefault(processor.ProcessorABC):
         Args:
             var_arrays (dict[str, ak.Array])
             gen_weights (dict[str, ak.Array])
-            output (coffea.processor.dict_accumulator)
+            output (coffea.processor.dict_accumulator): mutable object modified in this function
 
         Returns:
             None
@@ -246,7 +256,14 @@ class HistogramDefault(processor.ProcessorABC):
 
 
     def process(self, events):
-        """Make arrays and gen_weights for all interesting variable, and fill histograms."""
+        """Make arrays and gen_weights for all defined variables, and fill histograms.
+
+        Args:
+            events (ak.Array): the Events TTree opened with uproot.
+
+        Returns:
+            dict[str, coffea.processor.dict_accumulator]
+        """
 
         # Define accumulator
         output = self.accumulator.identity()

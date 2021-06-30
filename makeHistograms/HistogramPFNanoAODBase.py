@@ -13,7 +13,7 @@ from HistogramDefault import HistogramDefault
 
       
 
-class Histogram1(HistogramDefault):
+class HistogramPFNanoAODBase(HistogramDefault):
     """Coffea processor for accumulating histograms of selected variables.
 
     Some variables are directly read from the ROOT file while other are
@@ -26,7 +26,7 @@ class Histogram1(HistogramDefault):
 
     __init__ defines the following attributes:
         * self.njet_max
-        * self.jets
+        * self.jet_types
         * self.variables
         * self.gen_weights_info
         * self.cuts
@@ -65,102 +65,102 @@ class Histogram1(HistogramDefault):
         self.file_type = file_type
 
         self.njet_max = 4
-        self.jets = ["ak4", "ak8"]
+        self.jet_types = ["ak4", "ak8"]
 
         ## Iterable over jets
-        it1 = [ {"jet": "ak4"}, {"jet": "ak8"} ]
-        it11 = [ {"jet": "ak8"} ]
+        it1 = [ {"jet_type": "ak4"}, {"jet_type": "ak8"} ]
+        it11 = [ {"jet_type": "ak8"} ]
 
         ## Iterable over jets, cuts and jet number
         it2 = []
         it3 = []
         for njet in range(1, self.njet_max+1):
             for ijet in range(1, njet+1):
-                for jet in self.jets:
-                    it2.append({"jet": jet, "cut": "ge"+str(njet)+jet, "n": str(ijet)})
-                for jet in ["ak8"]:
-                    it3.append({"jet": jet, "cut": "ge"+str(njet)+jet, "n": str(ijet)})
+                for jet_type in self.jet_types:
+                    it2.append({"jet_type": jet_type, "cut": "ge"+str(njet)+jet_type, "n": str(ijet)})
+                for jet_type in ["ak8"]:
+                    it3.append({"jet_type": jet_type, "cut": "ge"+str(njet)+jet_type, "n": str(ijet)})
 
         ## Iterable over cuts
         it4 = [ {"cut": ""} ]
         for njet in range(1, self.njet_max+1):
-            it4.append({"cut": "_ge"+str(njet)+jet})
+            it4.append({"cut": "_ge"+str(njet)+jet_type})
 
         ## Iterable over cuts and jets
         it5 = []
         for njet in range(0, self.njet_max+1):
-            for jet in self.jets:
+            for jet_type in self.jet_types:
                 if njet == 0:
-                    it5.append({"jet": jet, "cut": ""})
+                    it5.append({"jet_type": jet_type, "cut": ""})
                 else:
-                    it5.append({"jet": jet, "cut": "_ge"+str(njet)+jet})
+                    it5.append({"jet_type": jet_type, "cut": "_ge"+str(njet)+jet_type})
 
         ## Iterable over cuts and jets
         it51 = []
         for njet in range(1, self.njet_max+1):
-            for jet in self.jets:
-                    it51.append({"jet": jet, "cut": "_ge"+str(njet)+jet})
+            for jet_type in self.jet_types:
+                    it51.append({"jet_type": jet_type, "cut": "_ge"+str(njet)+jet_type})
 
  
-        ## Iterable over jet, cuts and jet pair numbers
+        ## Iterable over jet_type, cuts and jet pair numbers
         it6 = []
-        for jet in self.jets:
+        for jet_type in self.jet_types:
            for njet in range(2, self.njet_max+1):
                for ijet1, ijet2 in init_helper.make_pairs(njet):
-                   it6.append({"jet": jet, "cut": "ge"+str(njet)+jet, "n1": str(ijet1+1), "n2": str(ijet2+1)})
+                   it6.append({"jet_type": jet_type, "cut": "ge"+str(njet)+jet_type, "n1": str(ijet1+1), "n2": str(ijet2+1)})
 
         ## Iterable over jet and cuts 
         it7 = []
-        for jet in self.jets:
+        for jet_type in self.jet_types:
            for njet in range(2, self.njet_max+1):
-               it7.append({"jet": jet, "cut": "ge"+str(njet)+jet})
+               it7.append({"jet_type": jet_type, "cut": "ge"+str(njet)+jet_type})
 
         
         variables_description = [
-            ( "{jet}Jet_n"           , it1 ),
-            ( "{jet}Jet_pt"          , it1 ),
-            ( "{jet}Jet_eta"         , it1 ),
-            ( "{jet}Jet_mass"        , it1 ),
-            ( "{jet}Jet_msoftdrop"   , it11 ),
-            ( "{jet}Jet_tau1"        , it11 ),
-            ( "{jet}Jet_tau2"        , it11 ),
-            ( "{jet}Jet_tau3"        , it11 ),
-            ( "{jet}Jet_tau4"        , it11 ),
-            ( "{jet}Jet_tau21"       , it11 ),
-            ( "{jet}Jet_tau32"       , it11 ),
-            ( "{jet}Jet_tau43"       , it11 ),
-            ( "{jet}Jet_n2b1"        , it11 ),
-            ( "{jet}Jet_n3b1"        , it11 ),
+            ( "{jet_type}Jet_n"           , it1 ),
+            ( "{jet_type}Jet_pt"          , it1 ),
+            ( "{jet_type}Jet_eta"         , it1 ),
+            ( "{jet_type}Jet_mass"        , it1 ),
+            ( "{jet_type}Jet_msoftdrop"   , it11 ),
+            ( "{jet_type}Jet_tau1"        , it11 ),
+            ( "{jet_type}Jet_tau2"        , it11 ),
+            ( "{jet_type}Jet_tau3"        , it11 ),
+            ( "{jet_type}Jet_tau4"        , it11 ),
+            ( "{jet_type}Jet_tau21"       , it11 ),
+            ( "{jet_type}Jet_tau32"       , it11 ),
+            ( "{jet_type}Jet_tau43"       , it11 ),
+            ( "{jet_type}Jet_n2b1"        , it11 ),
+            ( "{jet_type}Jet_n3b1"        , it11 ),
 
-            ( "{jet}Jet{n}_pt_{cut}"        , it2 ),
-            ( "{jet}Jet{n}_mass_{cut}"      , it2 ),
-            ( "{jet}Jet{n}_msoftdrop_{cut}" , it3 ),
-            ( "{jet}Jet{n}_tau1_{cut}"      , it3 ),
-            ( "{jet}Jet{n}_tau2_{cut}"      , it3 ),
-            ( "{jet}Jet{n}_tau3_{cut}"      , it3 ),
-            ( "{jet}Jet{n}_tau4_{cut}"      , it3 ),
-            ( "{jet}Jet{n}_tau21_{cut}"     , it3 ),
-            ( "{jet}Jet{n}_tau32_{cut}"     , it3 ),
-            ( "{jet}Jet{n}_tau43_{cut}"     , it3 ),
-            ( "{jet}Jet{n}_n2b1_{cut}"      , it3 ),
-            ( "{jet}Jet{n}_n3b1_{cut}"      , it3 ),
+            ( "{jet_type}Jet{n}_pt_{cut}"        , it2 ),
+            ( "{jet_type}Jet{n}_mass_{cut}"      , it2 ),
+            ( "{jet_type}Jet{n}_msoftdrop_{cut}" , it3 ),
+            ( "{jet_type}Jet{n}_tau1_{cut}"      , it3 ),
+            ( "{jet_type}Jet{n}_tau2_{cut}"      , it3 ),
+            ( "{jet_type}Jet{n}_tau3_{cut}"      , it3 ),
+            ( "{jet_type}Jet{n}_tau4_{cut}"      , it3 ),
+            ( "{jet_type}Jet{n}_tau21_{cut}"     , it3 ),
+            ( "{jet_type}Jet{n}_tau32_{cut}"     , it3 ),
+            ( "{jet_type}Jet{n}_tau43_{cut}"     , it3 ),
+            ( "{jet_type}Jet{n}_n2b1_{cut}"      , it3 ),
+            ( "{jet_type}Jet{n}_n3b1_{cut}"      , it3 ),
 
             ( "MET_pt{cut}"      , it5 ),
-            ( "HT{jet}{cut}"     , it5 ),
-            ( "ST{jet}{cut}"     , it5 ),
-            ( "METrHT{jet}{cut}" , it51),
-            ( "METrST{jet}{cut}" , it5 ),
+            ( "HT{jet_type}{cut}"     , it5 ),
+            ( "ST{jet_type}{cut}"     , it5 ),
+            ( "METrHT{jet_type}{cut}" , it51),
+            ( "METrST{jet_type}{cut}" , it5 ),
 
-            ( "deltaR_{jet}Jet{n1}_{jet}Jet{n2}_{cut}"   , it6 ),
-            ( "deltaPhi_{jet}Jet{n1}_{jet}Jet{n2}_{cut}" , it6 ),
-            ( "deltaEta_{jet}Jet{n1}_{jet}Jet{n2}_{cut}" , it6 ),
-            ( "deltaPhi_{jet}Jet{n1}{jet}Jet{n2}_MET_{cut}" , it6 ),
+            ( "deltaR_{jet_type}Jet{n1}_{jet_type}Jet{n2}_{cut}"   , it6 ),
+            ( "deltaPhi_{jet_type}Jet{n1}_{jet_type}Jet{n2}_{cut}" , it6 ),
+            ( "deltaEta_{jet_type}Jet{n1}_{jet_type}Jet{n2}_{cut}" , it6 ),
+            ( "deltaPhi_{jet_type}Jet{n1}{jet_type}Jet{n2}_MET_{cut}" , it6 ),
 
-            ( "deltaPhi_{jet}Jet{n}_MET_{cut}" , it2 ),
-            ( "deltaPhiMin_{jet}Jet_MET_{cut}" , it7 ),
+            ( "deltaPhi_{jet_type}Jet{n}_MET_{cut}" , it2 ),
+            ( "deltaPhiMin_{jet_type}Jet_MET_{cut}" , it7 ),
 
-            ( "{jet}Jet{n1}_{jet}Jet{n2}_mass_{cut}" , it6 ),
-            ( "{jet}Jet{n1}_{jet}Jet{n2}_pt_{cut}"   , it6 ),
+            ( "{jet_type}Jet{n1}_{jet_type}Jet{n2}_mass_{cut}" , it6 ),
+            ( "{jet_type}Jet{n1}_{jet_type}Jet{n2}_pt_{cut}"   , it6 ),
         ]
 
         simple_variables = [
@@ -185,13 +185,13 @@ class Histogram1(HistogramDefault):
 
         ## List of cuts necessary for computing some variables (i.e. need at least 2 jets for computing delta R between leading 2 jets!)
         self.cuts = ["noCut"] 
-        for jet in self.jets:
+        for jet_type in self.jet_types:
             for njet in range(1, self.njet_max+1):
-                self.cuts.append("ge"+str(njet)+jet)
+                self.cuts.append("ge"+str(njet)+jet_type)
         
 
         ## Get binning of for all variables to histogram
-        self.get_binning()
+        self.make_binning()
 
         ## Make dict filled with coffea histograms to be used in the accumulator
         self.define_histograms()
@@ -214,7 +214,7 @@ class Histogram1(HistogramDefault):
         Make masks for the cuts necessary to define some variables.
 
         Args:
-            events (ak.Array): the Events TTree open with uproot.
+            events (ak.Array): the Events TTree opened with uproot.
         
         Returns:
             (tuple) tuple containing:
@@ -249,13 +249,13 @@ class Histogram1(HistogramDefault):
 
 
         # Looping over all jet types
-        for jet in self.jets:
+        for jet_type in self.jet_types:
             # This could be refined fer Delphes etc...
-            jet_collection = "FatJet" if jet == "ak8" else "Jet"
+            jet_collection = "FatJet" if jet_type == "ak8" else "Jet"
 
 
             # Making jet 4-vectors
-            jagged_var_arrays[jet+"Jet_4vector"] = akutl.make_PtEtaPhiMLorentzVector(
+            jagged_var_arrays[jet_type+"Jet_4vector"] = akutl.make_PtEtaPhiMLorentzVector(
                 cfutl.get_from_events(events, jet_collection+"_pt"),
                 cfutl.get_from_events(events, jet_collection+"_eta"),
                 cfutl.get_from_events(events, jet_collection+"_phi"),
@@ -264,12 +264,12 @@ class Histogram1(HistogramDefault):
 
             # Making jet constituents 4-vectors
             if self.file_type == "PFnano102X":
-                if jet == "ak8": prefix = "Fat"
+                if jet_type == "ak8": prefix = "Fat"
                 else: prefix = ""
             elif self.file_type == "PFnano106X":
                 prefix = ""
             # the else case cannot happen, it has already been tackled
-            jagged_var_arrays[jet+"JetPFCands4vector"] = akutl.make_PtEtaPhiMLorentzVector(
+            jagged_var_arrays[jet_type+"JetPFCands4vector"] = akutl.make_PtEtaPhiMLorentzVector(
                 cfutl.get_from_events(events, prefix+"JetPFCands_pt"),
                 cfutl.get_from_events(events, prefix+"JetPFCands_eta"),
                 cfutl.get_from_events(events, prefix+"JetPFCands_phi"),
@@ -278,30 +278,30 @@ class Histogram1(HistogramDefault):
 
 
             # Reading jet "basic" variables for all jets in each event (flatten the jagged array)
-            init_helper.read_basic_variables(events, jet, jet_collection, jet_variables, jagged_var_arrays, var_arrays)
+            init_helper.read_basic_variables(events, jet_type, jet_collection, jet_variables, jagged_var_arrays, var_arrays)
            
             # Computing ratios of nsubjettiness
             for tauA, tauB, tauRatio in (("tau2", "tau1", "tau21"), ("tau3", "tau2", "tau32"), ("tau4", "tau3", "tau43")):
                 tauRatioBranchName = jet_collection + "_" + tauRatio
-                tauAVariableName = jet + "Jet_" + tauA
-                tauBVariableName = jet + "Jet_" + tauB
-                tauRatioVariableName = jet + "Jet_" + tauRatio
+                tauAVariableName = jet_type + "Jet_" + tauA
+                tauBVariableName = jet_type + "Jet_" + tauB
+                tauRatioVariableName = jet_type + "Jet_" + tauRatio
                 init_helper.compute_nsubjettiness_ratio(events, tauRatioBranchName, tauAVariableName, tauBVariableName, tauRatioVariableName, jagged_var_arrays, var_arrays)
                 if var_arrays[tauRatioVariableName] is not None: jet_variables.append(tauRatio)
 
 
-            init_helper.make_njet_masks(events, jet, jet_collection, self.njet_max, masks, jet_variables[0])
+            init_helper.make_njet_masks(events, jet_type, jet_collection, self.njet_max, masks, jet_variables[0])
             for njet in range(1, self.njet_max+1):
-                init_helper.make_masked_jagged_array_shorthands(jet, njet, masks, jagged_var_arrays)
+                init_helper.make_masked_jagged_array_shorthands(jet_type, njet, masks, jagged_var_arrays)
 
             # Making array of the above quantities for leading, subleading ... jets for event with more than 1, 2 ... jets
             for njet in range(1, self.njet_max+1):
-                init_helper.compute_variables_per_jet(jet_variables, jet, njet, jagged_var_arrays, var_arrays, masks)
+                init_helper.compute_variables_per_jet(jet_variables, jet_type, njet, jagged_var_arrays, var_arrays, masks)
 
             # Making some quantites involving jet and jet constituents 4-vectors
             for njet in range(1, self.njet_max+1):
 
-                ge_njet = "ge" + str(njet) + jet   # shorthand
+                ge_njet = "ge" + str(njet) + jet_type   # shorthand
                 mask_ge_njet = masks[ge_njet]        # shorthand
 
                 # delta R, phi eta between any pair of jets
@@ -311,19 +311,19 @@ class Histogram1(HistogramDefault):
                         # shorthands
                         sijet1 = str(ijet1+1)
                         sijet2 = str(ijet2+1)
-                        j1 = jagged_var_arrays[jet+"Jet_4vector_"+ge_njet][:, ijet1]
-                        j2 = jagged_var_arrays[jet+"Jet_4vector_"+ge_njet][:, ijet2]
+                        j1 = jagged_var_arrays[jet_type+"Jet_4vector_"+ge_njet][:, ijet1]
+                        j2 = jagged_var_arrays[jet_type+"Jet_4vector_"+ge_njet][:, ijet2]
                         met = jagged_var_arrays["MET_4vector_"+ge_njet]
-                        suffix = jet+"Jet"+sijet1+"_"+jet+"Jet"+sijet2+"_"+ge_njet
+                        suffix = jet_type+"Jet"+sijet1+"_"+jet_type+"Jet"+sijet2+"_"+ge_njet
                         
                         var_arrays["deltaR_"+suffix] = vecutl.delta_r(j1, j2)
                         var_arrays["deltaPhi_"+suffix] = vecutl.delta_phi(j1, j2)
                         var_arrays["deltaEta_"+suffix] = vecutl.delta_eta(j1, j2)
 
-                        suffix = jet+"Jet"+sijet1+jet+"Jet"+sijet2+"_MET_"+ge_njet
+                        suffix = jet_type+"Jet"+sijet1+jet_type+"Jet"+sijet2+"_MET_"+ge_njet
                         var_arrays["deltaPhi_"+suffix] = vecutl.abs_delta_phi(j1+j2, met)
 
-                        prefix = jet+"Jet"+sijet1+"_"+jet+"Jet"+sijet2
+                        prefix = jet_type+"Jet"+sijet1+"_"+jet_type+"Jet"+sijet2
                         var_arrays[prefix + "_mass_"+ge_njet] = vecutl.mass(j1, j2)
                         var_arrays[prefix + "_pt_"+ge_njet] = vecutl.pt(j1, j2)
 
@@ -331,50 +331,50 @@ class Histogram1(HistogramDefault):
                 # delta phi between any jet and MET
                 for ijet in range(njet):
                     sijet = str(ijet+1)
-                    j = jagged_var_arrays[jet+"Jet_4vector_"+ge_njet][:, ijet]
+                    j = jagged_var_arrays[jet_type+"Jet_4vector_"+ge_njet][:, ijet]
                     met = jagged_var_arrays["MET_4vector_"+ge_njet]
-                    var_arrays["deltaPhi_"+jet+"Jet"+sijet+"_MET_"+ge_njet] = vecutl.delta_phi(j, met)
+                    var_arrays["deltaPhi_"+jet_type+"Jet"+sijet+"_MET_"+ge_njet] = vecutl.delta_phi(j, met)
                 
                 # delta phi min between any jet and MET
                 if njet >=2:
-                    listOfAkArrays = [ var_arrays["deltaPhi_"+jet+"Jet"+str(ijet+1)+"_MET_"+ge_njet] for ijet in range(njet) ]
-                    var_arrays["deltaPhiMin_"+jet+"Jet_MET_"+ge_njet] = ak.min(ak.Array(listOfAkArrays), axis=0)
+                    listOfAkArrays = [ var_arrays["deltaPhi_"+jet_type+"Jet"+str(ijet+1)+"_MET_"+ge_njet] for ijet in range(njet) ]
+                    var_arrays["deltaPhiMin_"+jet_type+"Jet_MET_"+ge_njet] = ak.min(ak.Array(listOfAkArrays), axis=0)
 
 
 
             # Some other event-level variables requiring jet info
             # MET for different cuts
             for njet in range(1, self.njet_max+1):
-                ge_njet = "ge" + str(njet) + jet   # shorthand
-                mask_ge_njet = masks[ge_njet]        # shorthand
+                ge_njet = "ge" + str(njet) + jet_type   # shorthand
+                mask_ge_njet = masks[ge_njet]           # shorthand
                 var_arrays["MET_pt_"+ge_njet] = var_arrays["MET_pt"][mask_ge_njet]
                 var_arrays["MET_phi_"+ge_njet] = var_arrays["MET_phi"][mask_ge_njet]
 
             # HT, ST
-            var_arrays["HT"+jet] = ak.sum(jagged_var_arrays[jet+"Jet_pt"], axis=1)
-            var_arrays["ST"+jet] = var_arrays["HT"+jet] + var_arrays["MET_pt"]
+            var_arrays["HT"+jet_type] = ak.sum(jagged_var_arrays[jet_type+"Jet_pt"], axis=1)
+            var_arrays["ST"+jet_type] = var_arrays["HT"+jet_type] + var_arrays["MET_pt"]
 
             # MT
             if self.njet_max >= 2:
-                ge_njet = "ge2" + jet           # shorthand
-                jj_4vector = jagged_var_arrays[jet+"Jet_4vector_"+ge_njet][:, 0] + jagged_var_arrays[jet+"Jet_4vector_"+ge_njet][:, 1]
+                ge_njet = "ge2" + jet_type           # shorthand
+                jj_4vector = jagged_var_arrays[jet_type+"Jet_4vector_"+ge_njet][:, 0] + jagged_var_arrays[jet_type+"Jet_4vector_"+ge_njet][:, 1]
                 met_4vector = jagged_var_arrays["MET_4vector_"+ge_njet]
-                var_arrays["MT"+jet+"_"+ge_njet] = vecutl.mt(jj_4vector, met_4vector)
-                var_arrays["MTwrong"+jet+"_"+ge_njet] = vecutl.mt_wrong(jj_4vector, met_4vector)
+                var_arrays["MT"+jet_type+"_"+ge_njet] = vecutl.mt(jj_4vector, met_4vector)
+                var_arrays["MTwrong"+jet_type+"_"+ge_njet] = vecutl.mt_wrong(jj_4vector, met_4vector)
 
 
             # RT
-            var_arrays["RT"+jet+"_"+ge_njet] = var_arrays["MET_pt_"+ge_njet] / var_arrays["MT"+jet+"_"+ge_njet]
+            var_arrays["RT"+jet_type+"_"+ge_njet] = var_arrays["MET_pt_"+ge_njet] / var_arrays["MT"+jet_type+"_"+ge_njet]
          
             # Ratios of MET with HT, ST
-            var_arrays["METrST"+jet] = var_arrays["MET_pt"] / var_arrays["ST"+jet]
+            var_arrays["METrST"+jet_type] = var_arrays["MET_pt"] / var_arrays["ST"+jet_type]
             for njet in range(1, self.njet_max+1):
-                ge_njet = "ge" + str(njet) + jet   # shorthand
-                mask_ge_njet = masks[ge_njet]        # shorthand
-                var_arrays["HT"+jet+"_"+ge_njet] = var_arrays["HT"+jet][mask_ge_njet]
-                var_arrays["ST"+jet+"_"+ge_njet] = var_arrays["ST"+jet][mask_ge_njet]
-                var_arrays["METrHT"+jet+"_"+ge_njet] = var_arrays["MET_pt"][mask_ge_njet] / var_arrays["HT"+jet][mask_ge_njet]
-                var_arrays["METrST"+jet+"_"+ge_njet] = var_arrays["MET_pt"][mask_ge_njet] / var_arrays["ST"+jet][mask_ge_njet]
+                ge_njet = "ge" + str(njet) + jet_type   # shorthand
+                mask_ge_njet = masks[ge_njet]           # shorthand
+                var_arrays["HT"+jet_type+"_"+ge_njet] = var_arrays["HT"+jet_type][mask_ge_njet]
+                var_arrays["ST"+jet_type+"_"+ge_njet] = var_arrays["ST"+jet_type][mask_ge_njet]
+                var_arrays["METrHT"+jet_type+"_"+ge_njet] = var_arrays["MET_pt"][mask_ge_njet] / var_arrays["HT"+jet_type][mask_ge_njet]
+                var_arrays["METrST"+jet_type+"_"+ge_njet] = var_arrays["MET_pt"][mask_ge_njet] / var_arrays["ST"+jet_type][mask_ge_njet]
 
 
         return var_arrays, masks
@@ -396,10 +396,10 @@ class Histogram1(HistogramDefault):
         gen_weights["noCut_ak8bc"] = ak.flatten(ak.broadcast_arrays(gen_weights["noCut"], events["FatJet_pt"])[0])
         gen_weights["noCut_ak4bc"] = ak.flatten(ak.broadcast_arrays(gen_weights["noCut"], events["Jet_pt"])[0])
 
-        for jet in self.jets:
+        for jet_type in self.jet_types:
             for njet in range(1, self.njet_max+1):
-                ge_njet = "ge" + str(njet) + jet   # shorthand
-                mask_ge_njet = masks[ge_njet]        # shorthand
+                ge_njet = "ge" + str(njet) + jet_type   # shorthand
+                mask_ge_njet = masks[ge_njet]           # shorthand
                 gen_weights[ge_njet] = gen_weights["noCut"][mask_ge_njet]
 
         return gen_weights

@@ -1,6 +1,8 @@
+#!/bin/bash
+
 binning=binning.json
 samples_description=samples_skim1.json
-processor=Histogram2
+processor=HistogramPFNanoAODExtension
 output_directory=./
 
 

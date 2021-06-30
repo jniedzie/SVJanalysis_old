@@ -12,7 +12,7 @@ import json
 
 sys.path.append("../utilities/")
 import utilities as utl
-import processorHistograms as procHist
+import histogramProcessors as histogram_processors
 
 
 def print_cutflow(cutflow):
@@ -139,7 +139,7 @@ def main(binning, sample, file_type, processor, chunksize, maxchunks, nworkers, 
     output = cf.processor.run_uproot_job(
         fileset,
         treename = "Events",
-        processor_instance = getattr(procHist, processor)(binning, file_type),
+        processor_instance = getattr(histogram_processors, processor)(binning, file_type),
         executor = cf.processor.iterative_executor,
         executor_args = {"schema": cf.nanoevents.BaseSchema, "workers": nworkers},
         chunksize = chunksize,

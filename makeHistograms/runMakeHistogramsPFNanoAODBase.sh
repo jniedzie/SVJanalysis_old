@@ -1,6 +1,8 @@
+#!/bin/bash
+
 binning=binning.json
 samples_description=samples_skim1.json
-processor=Histogram1
+processor=HistogramPFNanoAODBase
 
 
 ## For tchannel

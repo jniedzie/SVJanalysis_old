@@ -12,7 +12,7 @@ import initializeAkArrayHelper as init_helper
 from HistogramDefault import HistogramDefault
 
 
-class Histogram2(HistogramDefault):
+class HistogramPFNanoAODExtension(HistogramDefault):
     """Coffea processor for accumulating histograms of selected variables.
 
     Some variables are directly read from the ROOT file while other are
@@ -25,7 +25,7 @@ class Histogram2(HistogramDefault):
 
     __init__ defines the following attributes:
         * self.njet_max
-        * self.jets
+        * self.jet_types
         * self.variables
         * self.gen_weights_info
         * self.cuts
@@ -64,25 +64,25 @@ class Histogram2(HistogramDefault):
         self.file_type = file_type
 
         self.njet_max = 4
-        self.jets = ["ak4", "ak8"]
+        self.jet_types = ["ak4", "ak8"]
 
         ## Iterable over jets
-        it1 = [ {"jet": "ak4"}, {"jet": "ak8"} ]
+        it1 = [ {"jet_type": "ak4"}, {"jet_type": "ak8"} ]
 
         ## Iterable over jets, cuts and jet number
         it2 = []
         for njet in range(1, self.njet_max+1):
             for ijet in range(1, njet+1):
-                for jet in self.jets:
-                    it2.append({"jet": jet, "cut": "ge"+str(njet)+jet, "n": str(ijet)})
+                for jet_type in self.jet_types:
+                    it2.append({"jet_type": jet_type, "cut": "ge"+str(njet)+jet_type, "n": str(ijet)})
 
         
         variables_description = [
-            ( "{jet}Jet_ptD"          , it1 ),
-            ( "{jet}Jet_girth"        , it1 ),
+            ( "{jet_type}Jet_ptD"          , it1 ),
+            ( "{jet_type}Jet_girth"        , it1 ),
 
-            ( "{jet}Jet{n}_ptD_{cut}"      , it2 ),
-            ( "{jet}Jet{n}_girth_{cut}"    , it2 ),
+            ( "{jet_type}Jet{n}_ptD_{cut}"      , it2 ),
+            ( "{jet_type}Jet{n}_girth_{cut}"    , it2 ),
 
         ]
 
@@ -98,12 +98,12 @@ class Histogram2(HistogramDefault):
 
         ## List of cuts necessary for computing some variables (i.e. need at least 2 jets for computing delta R between leading 2 jets!)
         self.cuts = ["noCut"] 
-        for jet in self.jets:
+        for jet_type in self.jet_types:
             for njet in range(1, self.njet_max+1):
-                self.cuts.append("ge"+str(njet)+jet)
+                self.cuts.append("ge"+str(njet)+jet_type)
         
         ## Get binning of for all variables to histogram
-        self.get_binning()
+        self.make_binning()
 
         ## Make dict filled with coffea histograms to be used in the accumulator
         self.define_histograms()
@@ -147,13 +147,13 @@ class Histogram2(HistogramDefault):
 
 
         # Looping over all jet types
-        for jet in self.jets:
+        for jet_type in self.jet_types:
             # This could be refined fer Delphes etc...
-            jet_collection = "FatJet" if jet == "ak8" else "Jet"
+            jet_collection = "FatJet" if jet_type == "ak8" else "Jet"
 
             # Making jet constituents 4-vectors
             if self.file_type == "PFnano102X":
-                if jet == "ak8": prefix = "Fat"
+                if jet_type == "ak8": prefix = "Fat"
                 else: prefix = ""
             elif self.file_type == "PFnano106X":
                 prefix = ""
@@ -161,13 +161,13 @@ class Histogram2(HistogramDefault):
 
 
             # Reading jet "basic" variables for all jets in each event (flatten the jagged array)
-            init_helper.read_basic_variables(events, jet, jet_collection, jet_variables, jagged_var_arrays, var_arrays)
+            init_helper.read_basic_variables(events, jet_type, jet_collection, jet_variables, jagged_var_arrays, var_arrays)
            
-            init_helper.make_njet_masks(events, jet, jet_collection, self.njet_max, masks, jet_variables[0])
+            init_helper.make_njet_masks(events, jet_type, jet_collection, self.njet_max, masks, jet_variables[0])
 
             # Making array of the above quantities for leading, subleading ... jets for event with more than 1, 2 ... jets
             for njet in range(1, self.njet_max+1):
-                init_helper.compute_variables_per_jet(jet_variables, jet, njet, jagged_var_arrays, var_arrays, masks)
+                init_helper.compute_variables_per_jet(jet_variables, jet_type, njet, jagged_var_arrays, var_arrays, masks)
 
         return var_arrays, masks
 
@@ -189,9 +189,9 @@ class Histogram2(HistogramDefault):
         gen_weights["noCut_ak4bc"] = ak.flatten(ak.broadcast_arrays(gen_weights["noCut"], events["Jet_ptD"])[0])
 
         ## To be automatised
-        for jet in self.jets:
+        for jet_type in self.jet_types:
             for njet in range(1, self.njet_max+1):
-                ge_njet = "ge" + str(njet) + jet   # shorthand
+                ge_njet = "ge" + str(njet) + jet_type   # shorthand
                 mask_ge_njet = masks[ge_njet]        # shorthand
                 gen_weights[ge_njet] = gen_weights["noCut"][mask_ge_njet]
 
