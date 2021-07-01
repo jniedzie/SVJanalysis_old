@@ -10,115 +10,159 @@ import os
 import sys
 import json
 
-sys.path.append("../pythonUtils/")
+sys.path.append("../utilities/")
 import utilities as utl
-import processorHistogram as procHist
+import histogramProcessors as histogram_processors
 
 
-def print_cutflow(cutflow, histogramKeys):
+def print_cutflow(cutflow):
+    """Print cut efficiencies for cuts needed for defining some of the variables.
+
+    For instance, to compute deltaR between leading 2 jets, events needs
+    to have at least 2 jets.
+
+    Args:
+        cutflow (dict[str, coffea.processor.defaultdict_accumulator(float)]):
+            Keys are cut names
+            Values are numbers of processed events (sum of gen weights)
+ 
+    Returns:
+        None
     """
-    Print cut efficiencies for cuts needed for defining some of the variables.
-    E.g. for deltaR between leading 2 jets, events needs to have at least 2 jets.
-    """
 
-    cutflowKeys = []
-    for key in cutflow.keys():
-        if key == "noCut": continue
-        if key not in histogramKeys:
-            cutflowKeys.append(key)
-
-    lenCol1 = max([ len(k) for k in cutflowKeys ])
+    len_column1 = max([ len(k) for k in cutflow.keys() ])
 
     print("\nCutflow:")
-    print("\tCut" + (lenCol1-3)*" " + "  Abs. eff. [%]")
+    print("\tCut" + (len_column1-3)*" " + "  Abs. eff. [%]")
     nAll = cutflow["noCut"]
-    for cut in cutflowKeys:
-        print("\t%s%s  %.2f" %(cut, (lenCol1-len(cut))*" ", 100*cutflow[cut]/nAll))
+    for cut in cutflow.keys():
+        print("\t%s%s  %.2f" %(cut, (len_column1-len(cut))*" ", 100*cutflow[cut]/nAll))
 
     return
 
 
-def calculate_efficiency(fileset, efficiencyBranch, genWeightBranch="Events/genWeight"):
+def calculate_efficiency(fileset, efficiency_branch, gen_weight_branch="Events/genWeight"):
     """
     Calculate efficiency using the effienciency written in input ROOT files,
     weighted by the sum of generator weights for the events in this ROOT file.
+
+    Args:
+        fileset (list[str]): list of ROOT files
+        efficiency_branch (str): name of the efficiency branch
+        gen_weight_branch (str): name of generator weights branch
+
+    Returns:
+        float
     """
 
     efficiencies = []
-    sumGenWeights = []
+    sum_gen_weights = []
 
     for file_ in fileset:
         data = uproot.open(file_)
-        efficiencies.append( data[efficiencyBranch].arrays()[efficiencyBranch.split("/")[-1]][0] )
-        sumGenWeights.append( ak.sum(data[genWeightBranch].arrays()[genWeightBranch.split("/")[-1]]) )
+        efficiencies.append( data[efficiency_branch].arrays()[efficiency_branch.split("/")[-1]][0] )
+        sum_gen_weights.append( ak.sum(data[gen_weight_branch].arrays()[gen_weight_branch.split("/")[-1]]) )
 
-    efficiency = sum([ eff*sgw for eff, sgw in zip(efficiencies, sumGenWeights)]) / sum(sumGenWeights)
+    efficiency = sum([ eff*sgw for eff, sgw in zip(efficiencies, sum_gen_weights)]) / sum(sum_gen_weights)
     
     return efficiency
 
 
-def write_root_file(accumulator, rootFileName, mode, cutflow, lumi, xSection, efficiency):
-    """
-    Write histograms, stored in a coffea accumulator, to a ROOT file.
+def write_root_file(accumulator, root_file_name, n_processed_events, lumi, xsection, efficiency):
+    """Write histograms, stored in a coffea accumulator, to a ROOT file.
+
     Number of generated events (cutflow), pre-selection cut efficiency (efficiency), luminosity (lumi)
     and cross-section (xSection) are needed to normalize the histograms.
+
+    Args:
+        accumulator (dict[str, coffea.hist.Hist])
+        root_file_name (str): Name of the ROOT file to create
+        n_generated_events (float): Number of processed events (sum of gen weights)
+        lumi (float): integrated luminosity
+        xsection (float): Cross section
+        efficiency (float): Pre-selection cut efficiency 
+
+    Returns:
+        None
     """
 
     # Need to use uproot3 because it is not implemented yet in uproot4 (Feb. 2021)
-    print("\nWill %s ROOT file %s\n" %(mode.lower(), rootFileName))
+    print("\nWill recreate ROOT file %s\n" %root_file_name)
 
-    writtenHists = []
-    with getattr(uproot3, mode)(rootFileName) as f:    # Create/update output file
+    written_hists = []
+    with uproot3.recreate(root_file_name) as f:    # Create/update output file
         for variable, hist in accumulator.items():
             if isinstance(hist, cf.hist.Hist):
-                hist.scale(lumi * xSection * efficiency / cutflow["noCut"])
+                hist.scale(lumi * xsection * efficiency / n_processed_events )
                 f[variable] = cf.hist.export1d(hist)
-                writtenHists.append(variable)
+                written_hists.append(variable)
 
     print("Histograms written to output ROOT file:")
-    for writtenHist in writtenHists:
-        print("\t%s" %writtenHist)
+    for written_hist in written_hists:
+        print("\t%s" %written_hist)
 
     return
 
 
-def main(mode, binning, sample, fileType, processor, outputDirectory, lumi, useEfficiencies, efficiencyBranch):
+def main(binning, sample, file_type, processor, chunksize, maxchunks, nworkers, output_directory, lumi, use_efficiencies, efficiency):
+    """Produce a ROOT file filled with histograms.
+    
+    Produce a ROOT file filled with histograms read from input ROOT files or computed on the fly.
+
+    Args:
+        binning (dict): Binning information
+        sample (dict): Dict with sample name, cross-section and fileset
+        file_type (str)
+        processor (str)
+        chunksize (int)
+        maxchunks (int)
+        nworkers (int)
+        output_directory (str)
+        lumi (float)
+        use_efficiencies (bool)
+        efficiency (str or float): Name of the efficiency branch or efficiency
+
+    Returns:
+        None
+    """
 
     ## Get sample name and cross-section
-    sampleName = sample["name"]
-    xSection = sample["XSection"]
+    sample_name = sample["name"]
+    xsection = sample["XSection"]
 
 
     ## Fileset
-    fileset = { sampleName: sample["fileset"] }
+    fileset = { sample_name: sample["fileset"] }
 
 
     ## Make histograms
     output = cf.processor.run_uproot_job(
         fileset,
         treename = "Events",
-        processor_instance = getattr(procHist, processor)(binning, fileType),
+        processor_instance = getattr(histogram_processors, processor)(binning, file_type),
         executor = cf.processor.iterative_executor,
-        executor_args = {"schema": cf.nanoevents.BaseSchema, "workers": 4},
-        chunksize = 100000,
-        maxchunks = None,
+        executor_args = {"schema": cf.nanoevents.BaseSchema, "workers": nworkers},
+        chunksize = chunksize,
+        maxchunks = maxchunks,
     )
 
     ## Efficiencies
-    if useEfficiencies:
-        efficiency = calculate_efficiency(sample["fileset"], efficiencyBranch)
+    if use_efficiencies:
+        if isinstance(efficiency, str):
+            efficiency = calculate_efficiency(sample["fileset"], efficiency)
+        # else efficiency is a float that already corresponds to the efficiency
     else:
         efficiency = 1.
 
 
     ## Print out cutflow
     cutflow = output.pop("cutflow")
-    print_cutflow(cutflow, output.keys())
+    print_cutflow(cutflow)
 
 
     ## Save histograms to ROOT file
-    rootFileName = outputDirectory + sampleName + ".root"
-    write_root_file(output, rootFileName, mode, cutflow, lumi, xSection, efficiency)
+    root_file_name = output_directory + sample_name + ".root"
+    write_root_file(output, root_file_name, cutflow["noCut"], lumi, xsection, efficiency)
 
     return
 
@@ -129,11 +173,6 @@ if __name__ == "__main__":
 
     ## Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-m", "--mode",
-        help="Mode in which to open the output ROOT file. Choices: recreate (default), update",
-        choices=["recreate", "update"], default="recreate"
-        )
     parser.add_argument(
         "-b", "--binning",
         help="json file describing binning of the histograms",
@@ -160,6 +199,21 @@ if __name__ == "__main__":
         required=True
         )
     parser.add_argument(
+        "-c", "--chunksize",
+        help="Size of the data chunks (default=100000)",
+        default=100000, type=int
+        )
+    parser.add_argument(
+        "-m", "--maxchunks",
+        help="Maximum number of chunks to process, no flag means no maximum",
+        type=int
+        )
+    parser.add_argument(
+        "-n", "--nworkers",
+        help="Number of worker nodes (default=4)",
+        default=4, type=int
+        )
+    parser.add_argument(
         "-o", "--outputDirectory",
         help="Path to the directory where to recreate/update ROOT file (default=./)",
         default="./"
@@ -179,12 +233,12 @@ if __name__ == "__main__":
 
     
     ## Create output directory if it does not exist
-    outputDirectory = args.outputDirectory
-    if not os.path.exists(outputDirectory):
-        os.makedirs(outputDirectory)
+    output_directory = args.outputDirectory
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
 
     ## All samples description
-    samplesDescription = utl.makeJsonData(args.samplesDescription)
+    samples_description = utl.makeJsonData(args.samplesDescription)
 
     ## Define the binning of the different variables to histogram
     with open(args.binning, 'r') as f:
@@ -192,23 +246,26 @@ if __name__ == "__main__":
 
     ## Get samples for which to make histograms
     if not args.samples:
-        samplesNames = list(samplesDescription.keys())
+        samples_names = list(samples_description.keys())
     else:
-        samplesNames = args.samples.split(",")
+        samples_names = args.samples.split(",")
 
     ## Efficiencies
     if args.efficiency == "False":
-        useEfficiencies = False
-        efficiencyBranch = None
+        use_efficiencies = False
+        efficiency = None
     else:
-        useEfficiencies = True
-        efficiencyBranch = args.efficiency
+        use_efficiencies = True
+        if args.efficiency.replace(".", "").isdigit():
+            efficiency = float(args.efficiency)
+        else:
+            efficiency = args.efficiency
 
     ## Loop over all samples
-    for sampleName in samplesNames:
-        sample = samplesDescription[sampleName]
+    for sample_name in samples_names:
+        sample = samples_description[sample_name]
         if "name" not in sample.keys():
-            sample["name"] = sampleName
+            sample["name"] = sample_name
 
         # Get / infer file type
         if not args.fileType:
@@ -218,19 +275,19 @@ if __name__ == "__main__":
             branches = [ branch.decode("utf-8") for branch in events.keys() ]
 
             if "JetPFCandsAK4_jetIdx" in branches:
-                fileType = "PFnano106X"
+                file_type = "PFnano106X"
             elif "JetPFCands_jetIdx" in branches:
-                fileType = "PFnano102X"
+                file_type = "PFnano102X"
             else:
                 print("ERROR: file type cannot be inferred!")
                 sys.exit()
-            print("Inferred file type: %s" %fileType)
+            print("Inferred file type: %s" %file_type)
 
         else:
-            fileType = args.fileType
+            file_type = args.fileType
 
         # Make histograms
-        main(args.mode, binning, sample, fileType, args.processor, outputDirectory, float(args.lumi), useEfficiencies, efficiencyBranch)
+        main(binning, sample, file_type, args.processor, args.chunksize, args.maxchunks, args.nworkers, output_directory, float(args.lumi), use_efficiencies, efficiency)
 
 
     elapsed = time.time() - tstart
