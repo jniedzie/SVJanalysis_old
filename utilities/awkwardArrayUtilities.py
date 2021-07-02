@@ -1,27 +1,4 @@
 import awkward as ak
-from coffea.nanoevents.methods import vector
-# Needed so that ak.zip({"pt": [...], "eta": [...], "phi": [...], "mass": [...]},
-#                         with_name="PtEtaPhiMLorentzVector")
-# is understood as a PtEtaPhiMLorentzVector from coffea.nanoevents.methods.vector
-ak.behavior.update(vector.behavior)
-
-
-
-def make_PtEtaPhiMLorentzVector(pt, eta, phi, mass):
-    """Take pt, eta, phi, mass awkward arrays and return the corresponding PtEtaPhiMLorentzVector."""
-
-    vec = ak.zip(
-        {
-            "pt": pt,
-            "eta": eta,
-            "phi": phi,
-            "mass": mass,
-        },
-        with_name="PtEtaPhiMLorentzVector",
-    )
-
-    return vec
-
 
 
 def divide_ak_arrays(ak_array1, ak_array2, division_by_zero_value=1., verbose=False):

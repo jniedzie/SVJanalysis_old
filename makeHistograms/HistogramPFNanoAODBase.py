@@ -4,7 +4,6 @@ import sys
 
 sys.path.append("../utilities/")
 import utilities as utl
-import awkwardArrayUtilities as akutl
 import coffeaUtilities as cfutl
 import PtEtaPhiMLorentzVectorUtilities as vecutl
 import initializeAkArrayHelper as init_helper
@@ -238,7 +237,7 @@ class HistogramPFNanoAODBase(HistogramDefault):
 
 
         # Event-level variables not requiring jet info
-        jagged_var_arrays["MET_4vector"] = akutl.make_PtEtaPhiMLorentzVector(
+        jagged_var_arrays["MET_4vector"] = vecutl.make_PtEtaPhiMLorentzVector(
             cfutl.get_from_events(events, "MET_pt"),
             ak.zeros_like(cfutl.get_from_events(events, "MET_pt")),
             cfutl.get_from_events(events, "MET_phi"),
@@ -255,7 +254,7 @@ class HistogramPFNanoAODBase(HistogramDefault):
 
 
             # Making jet 4-vectors
-            jagged_var_arrays[jet_type+"Jet_4vector"] = akutl.make_PtEtaPhiMLorentzVector(
+            jagged_var_arrays[jet_type+"Jet_4vector"] = vecutl.make_PtEtaPhiMLorentzVector(
                 cfutl.get_from_events(events, jet_collection+"_pt"),
                 cfutl.get_from_events(events, jet_collection+"_eta"),
                 cfutl.get_from_events(events, jet_collection+"_phi"),
@@ -269,7 +268,7 @@ class HistogramPFNanoAODBase(HistogramDefault):
             elif self.file_type == "PFnano106X":
                 prefix = ""
             # the else case cannot happen, it has already been tackled
-            jagged_var_arrays[jet_type+"JetPFCands4vector"] = akutl.make_PtEtaPhiMLorentzVector(
+            jagged_var_arrays[jet_type+"JetPFCands4vector"] = vecutl.make_PtEtaPhiMLorentzVector(
                 cfutl.get_from_events(events, prefix+"JetPFCands_pt"),
                 cfutl.get_from_events(events, prefix+"JetPFCands_eta"),
                 cfutl.get_from_events(events, prefix+"JetPFCands_phi"),
@@ -317,8 +316,8 @@ class HistogramPFNanoAODBase(HistogramDefault):
                         suffix = jet_type+"Jet"+sijet1+"_"+jet_type+"Jet"+sijet2+"_"+ge_njet
                         
                         var_arrays["deltaR_"+suffix] = vecutl.delta_r(j1, j2)
-                        var_arrays["deltaPhi_"+suffix] = vecutl.delta_phi(j1, j2)
-                        var_arrays["deltaEta_"+suffix] = vecutl.delta_eta(j1, j2)
+                        var_arrays["deltaPhi_"+suffix] = vecutl.abs_delta_phi(j1, j2)
+                        var_arrays["deltaEta_"+suffix] = vecutl.abs_delta_eta(j1, j2)
 
                         suffix = jet_type+"Jet"+sijet1+jet_type+"Jet"+sijet2+"_MET_"+ge_njet
                         var_arrays["deltaPhi_"+suffix] = vecutl.abs_delta_phi(j1+j2, met)
@@ -333,7 +332,7 @@ class HistogramPFNanoAODBase(HistogramDefault):
                     sijet = str(ijet+1)
                     j = jagged_var_arrays[jet_type+"Jet_4vector_"+ge_njet][:, ijet]
                     met = jagged_var_arrays["MET_4vector_"+ge_njet]
-                    var_arrays["deltaPhi_"+jet_type+"Jet"+sijet+"_MET_"+ge_njet] = vecutl.delta_phi(j, met)
+                    var_arrays["deltaPhi_"+jet_type+"Jet"+sijet+"_MET_"+ge_njet] = vecutl.abs_delta_phi(j, met)
                 
                 # delta phi min between any jet and MET
                 if njet >=2:
