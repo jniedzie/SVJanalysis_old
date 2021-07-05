@@ -6,7 +6,7 @@ import numpy as np
 import time
 import argparse
 
-from processors import *
+from BranchesProducer import BranchesProducer
 
 
 def make_events_branches(accumulator, debug):
@@ -77,7 +77,7 @@ def write_root_file(accumulator, output_file, debug):
     return
 
 
-def main(input_file, output_file, processor_name, chunksize, maxchunks, nworkers, debug):
+def main(input_file, output_file, chunksize, maxchunks, nworkers, debug):
 
     print("Input file:")
     print(input_file)
@@ -89,7 +89,7 @@ def main(input_file, output_file, processor_name, chunksize, maxchunks, nworkers
     output = processor.run_uproot_job(
         fileset,
         treename = "Events",
-        processor_instance = eval(processor_name+"()"),
+        processor_instance = BranchesProducer(),
         executor = processor.iterative_executor,
         executor_args = {"schema": PFNanoAODSchema, "workers": nworkers},
         chunksize = chunksize,
@@ -120,11 +120,6 @@ if __name__ == "__main__":
         help="Output ROOT file name (default=inputfile_extension.root)",
         )
     parser.add_argument(
-        "-p", "--processor",
-        help="Coffea processor to be used, as defined in processors.py",
-        required=True,
-        )
-    parser.add_argument(
         "-c", "--chunksize",
         help="Size of the data chunks (default=100000)",
         default=100000,
@@ -150,7 +145,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    main(args.inputfile, args.outputfile, args.processor, args.chunksize, args.maxchunks, args.nworkers, args.debug)
+    main(args.inputfile, args.outputfile, args.chunksize, args.maxchunks, args.nworkers, args.debug)
 
 
     elapsed = time.time() - tstart
