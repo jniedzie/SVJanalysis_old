@@ -8,7 +8,7 @@ import coffeaUtilities as cfutl
 import awkwardArrayUtilities as akutl
 import PtEtaPhiMLorentzVectorUtilities as vecutl
 import physicsUtilities as phutl
-import variablesComputation.awkwardArray.jetVariables as jetvar
+import variablesComputation.awkwardArray.jetVariables as jetvars
 
 
 ## Define some helper functions - Could be put in separate file later
@@ -159,9 +159,7 @@ class BranchesProducer(processor.ProcessorABC):
                 branches[jet_collection + "_neHEF"]: cfutl.column_accumulator(np.float64)
  
         ## Define accumulator
-        self._accumulator = processor.dict_accumulator({
-            **branches
-            })
+        self._accumulator = processor.dict_accumulator(branches)
 
 
     @property
@@ -193,16 +191,16 @@ class BranchesProducer(processor.ProcessorABC):
             njets = get_collection_size(events, jet_collection)
 
             output["n" + jet_collection] = cfutl.accumulate(njets)
-            output[jet_collection + "_ptD"] = cfutl.accumulate(jetvar.calculate_ptD(jet_pf_cands)[0])
-            output[jet_collection + "_girth"] = cfutl.accumulate(jetvar.calculate_girth(jet_pf_cands, jets, njets)[0])
-            axis_major, axis_minor, axis_avg = jetvar.calculate_axes(jet_pf_cands, jets, njets)
+            output[jet_collection + "_ptD"] = cfutl.accumulate(jetvars.calculate_ptD(jet_pf_cands)[0])
+            output[jet_collection + "_girth"] = cfutl.accumulate(jetvars.calculate_girth(jet_pf_cands, jets, njets)[0])
+            axis_major, axis_minor, axis_avg = jetvars.calculate_axes(jet_pf_cands, jets, njets)
             output[jet_collection + "_axisMajor"] = cfutl.accumulate(axis_major)
             output[jet_collection + "_axisMinor"] = cfutl.accumulate(axis_minor)
             output[jet_collection + "_axisAvg"] = cfutl.accumulate(axis_avg)
 
             if jet_type == "AK8":
-                output[jet_collection + "_chHEF"] = cfutl.accumulate(jetvar.calculate_chHEF(jet_pf_cands, jets, njets)[0])
-                output[jet_collection + "_neHEF"] = cfutl.accumulate(jetvar.calculate_neHEF(jet_pf_cands, jets, njets)[0])
+                output[jet_collection + "_chHEF"] = cfutl.accumulate(jetvars.calculate_chHEF(jet_pf_cands, jets, njets)[0])
+                output[jet_collection + "_neHEF"] = cfutl.accumulate(jetvars.calculate_neHEF(jet_pf_cands, jets, njets)[0])
 
         return output
 

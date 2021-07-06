@@ -253,6 +253,9 @@ def calculate_jet_variable(variable, pf_cands, jets, njets, nan_value=-1):
             ak_arrays = calculate_chHEF_1_jet(jet_idx, pf_cands, nan_value)
         elif variable == "neHEF":
             ak_arrays = calculate_neHEF_1_jet(jet_idx, pf_cands, nan_value)
+        else:
+            print("ERROR: Unknown variable %s. Exit!" %variable)
+            sys.exit()
         
         if jet_idx == 0:
             ak_array_list = len(ak_arrays) * [ ak.Array([]) ]
