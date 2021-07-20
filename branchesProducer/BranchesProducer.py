@@ -52,7 +52,7 @@ def get_jets(events, jet_type):
             that can be used as a coffea PtEtaPhiMLorentzVector.
     """
 
-    jet_collection = nameutl.jet_algo_2_jet_collection(jet_type)
+    jet_collection = nameutl.jet_algo_name_to_jet_collection_name(jet_type)
     jet_branch = eval("events." + jet_collection)
 
     jets = ak.zip(
@@ -183,7 +183,7 @@ class BranchesProducer(processor.ProcessorABC):
 
         for jet_type in self.jet_types:
 
-            jet_collection = nameutl.jet_algo_2_jet_collection(jet_type)
+            jet_collection = nameutl.jet_algo_name_to_jet_collection_name(jet_type)
 
             jets = get_jets(events, jet_type)
             jet_pf_cands = get_pf_cands(events, jet_type)
@@ -211,9 +211,9 @@ class BranchesProducer(processor.ProcessorABC):
 
                 beta = 1
                 e2b1 = jetvars.calculate_ecf_e2(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt)
-                e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
+                #e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
                 v1e3b1, v2e3b1, e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=True)
-                e4b1 = jetvars.calculate_ecfs_e4(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
+                #e4b1 = jetvars.calculate_ecfs_e4(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
                 v1e4b1, v2e4b1, v3e4b1, v4e4b1, v5e4b1, e4b1 = jetvars.calculate_ecfs_e4(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=True)
                 output[jet_collection + "_e2b1"] = cfutl.accumulate(e2b1)
                 output[jet_collection + "_v1e3b1"] = cfutl.accumulate(v1e3b1)

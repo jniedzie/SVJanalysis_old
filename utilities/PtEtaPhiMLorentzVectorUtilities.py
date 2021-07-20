@@ -28,10 +28,7 @@ def rapidity(obj):
 
 
 def pz(obj, use_rapidity=False):
-    if use_rapidity:
-        obj_eta = obj.y
-    else:
-        obj_eta = obj.eta
+    obj_eta = obj.y if use_rapidity else obj.eta
     return np.sinh(obj_eta) * np.sqrt( obj.pt**2 + obj.mass**2 )
 
 

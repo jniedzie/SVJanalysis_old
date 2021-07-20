@@ -23,7 +23,7 @@ def calculate_number_of_jets(jets):
 def calculate_razor_MR(jets, njets=None, nan_value=0):
     """Calculate M_R Razor variable for all events using 2 leading jets.
 
-    If an event has less than 2 jets, returns -1 for that event.
+    If an event has less than 2 jets, returns nan_value for that event.
 
     Args:
         jets (awkward.Array):
@@ -55,7 +55,7 @@ def calculate_razor_MR(jets, njets=None, nan_value=0):
 def calculate_razor_MRT(jets, met, njets=None, nan_value=0):
     """Calculate M^R_T Razor variable for all events using 2 leading jets.
 
-    If an event has less than 2 jets, returns -1 for that event.
+    If an event has less than 2 jets, returns nan_value for that event.
 
     Args:
         jets (awkward.Array):
@@ -88,7 +88,7 @@ def calculate_razor_MRT(jets, met, njets=None, nan_value=0):
     return mrt
 
 
-def calculate_razor_R(mr, mrt):
+def calculate_razor_R(mr, mrt, nan_value=0):
     """Calculate R Razor variable for all events from M_R and M^R_T variables.
 
     Args:
@@ -99,4 +99,4 @@ def calculate_razor_R(mr, mrt):
         awkward.Array
     """
 
-    return akutl.divide_ak_arrays(mrt, mr, division_by_zero_value=0.)
+    return akutl.divide_ak_arrays(mrt, mr, division_by_zero_value=nan_value)

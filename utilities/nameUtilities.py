@@ -1,4 +1,4 @@
-def jet_algo_2_jet_collection(jet_algo):
+def jet_algo_name_to_jet_collection_name(jet_algo):
     """Helper function converting jet algorithm name into jet collection name.
 
     Args:
@@ -16,7 +16,7 @@ def jet_algo_2_jet_collection(jet_algo):
     return table[jet_algo.lower()]
 
 
-def jet_collection_2_jet_algo(jet_collection):
+def jet_collection_name_to_jet_algo_name(jet_collection):
     """Helper function converting jet collection name into jet algorithm name.
 
     Args:

@@ -213,7 +213,7 @@ def calculate_efps_1_jet(jet_idx, pf_cands, degree):
         numpy.ndarray
     """
 
-    jet_pf_cands_ptyphim = akutl.ak_to_ptyphim(pf_cands, jet_idx)
+    jet_pf_cands_ptyphim = akutl.ak_to_ptyphim_four_vectors(pf_cands, jet_idx)
     
     efpset = ef.EFPSet('d<='+str(degree), measure='hadr', beta=1, normed=True, verbose=False, coords="ptyphim")
     efps = efpset.batch_compute(jet_pf_cands_ptyphim)

@@ -110,5 +110,5 @@ def swap_axes(ak_array):
     return ak_array
 
 
-def ak_to_ptyphim(ak_array, jet_idx):
+def ak_to_ptyphim_four_vectors(ak_array, jet_idx):
     return np.array([ [ [c.pt, c.rapidity, c.phi, c.mass] for c in ak_array[ievent][ak_array[ievent].jetIdx == jet_idx] ] if ak.count(ak_array[ievent][ak_array[ievent].jetIdx == jet_idx], axis=None)>0 else [[1,1,1,1]] for ievent in range(ak.num(ak_array, axis=0)) ], dtype=object)
