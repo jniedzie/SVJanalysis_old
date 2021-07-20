@@ -23,8 +23,6 @@ def calculate_number_of_jets(jets):
 def calculate_razor_MR(jets, njets=None, nan_value=0):
     """Calculate M_R Razor variable for all events using 2 leading jets.
 
-    If an event has less than 2 jets, returns nan_value for that event.
-
     Args:
         jets (awkward.Array):
             Ak array where axis 0 is the event axis, axis 1 is the jet axis
@@ -34,7 +32,7 @@ def calculate_razor_MR(jets, njets=None, nan_value=0):
             Ak array with one axis with number of jets in each event.
             If None, will be computed from jets.
         nan_value (float, optional, default=0):
-            Value to use when the event has less than jet_idx+1 jet(s).
+            Value to use when the event has less than 2 jets.
 
     Returns:
         awkward.Array
@@ -55,8 +53,6 @@ def calculate_razor_MR(jets, njets=None, nan_value=0):
 def calculate_razor_MRT(jets, met, njets=None, nan_value=0):
     """Calculate M^R_T Razor variable for all events using 2 leading jets.
 
-    If an event has less than 2 jets, returns nan_value for that event.
-
     Args:
         jets (awkward.Array):
             Ak array where axis 0 is the event axis, axis 1 is the jet axis
@@ -69,7 +65,7 @@ def calculate_razor_MRT(jets, met, njets=None, nan_value=0):
             Ak array with one axis with number of jets in each event.
             If None, will be computed from jets.
         nan_value (float, optional, default=0):
-            Value to use when the event has less than jet_idx+1 jet(s).
+            Value to use when the event has less than 2 jets.
 
     Returns:
         awkward.Array
