@@ -30,10 +30,6 @@ def column_accumulator(type_):
     return processor.column_accumulator(np.array([], dtype=type_))
 
 
-def value_accumulator(type_, initial=0):
-    return processor.value_accumulator(type_, initial=initial)
-
-
 def accumulate(ak_array):
     """Accumulate ak array into a coffea processor column accumulator.
 
