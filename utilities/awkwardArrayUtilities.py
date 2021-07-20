@@ -1,4 +1,5 @@
 import awkward as ak
+import numpy as np
 
 
 def divide_ak_arrays(ak_array1, ak_array2, division_by_zero_value=1., verbose=False):
@@ -107,3 +108,7 @@ def swap_axes(ak_array):
     np_array = np_array.T
     ak_array = ak.Array([np_array])     # Can't avoid that copy in memory!!!
     return ak_array
+
+
+def ak_to_ptyphim_four_vectors(ak_array, jet_idx):
+    return np.array([ [ [c.pt, c.rapidity, c.phi, c.mass] for c in ak_array[ievent][ak_array[ievent].jetIdx == jet_idx] ] if ak.count(ak_array[ievent][ak_array[ievent].jetIdx == jet_idx], axis=None)>0 else [[1,1,1,1]] for ievent in range(ak.num(ak_array, axis=0)) ], dtype=object)

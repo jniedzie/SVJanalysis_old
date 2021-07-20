@@ -9,6 +9,7 @@ import argparse
 from BranchesProducer import BranchesProducer
 
 
+# Note: This function could be put in a separate file to be used by other scripts as well
 def make_events_branches(accumulator, debug):
     """Make branches for Events tree."""
 
@@ -54,8 +55,16 @@ def make_events_branches(accumulator, debug):
     return branches, branches_init
 
 
-def write_root_file(accumulator, output_file, debug):
-    """
+def write_root_file(accumulator, output_file_name, debug):
+    """Write histograms, stored in a coffea accumulator, to a ROOT file.
+
+    Args:
+        accumulator (coffea.processor.dict_accumulator)
+        output_file_name (str): Name of the ROOT file to create
+        debug (bool)
+
+    Returns:
+        None
     """
 
     # Making branches to write to Events tree
@@ -69,10 +78,12 @@ def write_root_file(accumulator, output_file, debug):
 
     # Save branches to ROOT file
     # Need to use uproot3 because it is not implemented yet in uproot4 (Feb. 2021)
-    with uproot3.recreate(output_file) as f:
+    # Need to use compression=None because there is a bug with EFPs when the file is compressed:
+    # More info at https://github.com/scikit-hep/uproot3/issues/506
+    with uproot3.recreate(output_file_name, compression=None) as f:
         f["Events"] = uproot3.newtree(branches_init)
         f["Events"].extend(branches)
-        print("\nTTree Events saved to output file %s" %output_file)
+        print("\nTTree Events saved to output file %s" %output_file_name)
 
     return
 
