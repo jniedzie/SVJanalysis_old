@@ -1,5 +1,6 @@
 from coffea import processor
-from coffea.nanoevents import BaseSchema
+#from coffea.nanoevents import PFNanoAODSchema
+from coffea.nanoevents import NanoAODSchema
 import awkward as ak
 import awkward0 as ak0
 import uproot3
@@ -42,6 +43,30 @@ def print_cutflow(cutflow):
     return efficiencies
 
 
+def delete_empty_fields(accumulator, debug):
+    """ ... """
+
+    deletion = False
+    if debug: print("\nDeleting empty fields...")
+
+    keys_to_delete = []
+    for key, column in accumulator.items():
+        if column.value.shape[0] == 0:
+            keys_to_delete.append(key)
+            if debug:
+                deletion = True
+                print("%s is empty. Deleting from accumulator." %key)
+
+    if debug:
+        if not deletion:
+            print("No empty field in accumulator.")
+        print("")
+        
+    for key in keys_to_delete: accumulator.pop(key)
+
+    return
+      
+
 def make_events_branches(accumulator, debug):
     """Make branches for Events tree."""
 
@@ -69,7 +94,7 @@ def make_events_branches(accumulator, debug):
                 #     jetIdx = (events.JetPFCandsAK4_jetIdx == ijet)
                 #     candIdx = events.JetPFCandsAK4_candIdx[jetIdx]
                 #     PFcands_eta = events.JetPFCands_eta[candIdx]
-                if k.endswith("_candIdx") or k.endswith("_jetIdx"):
+                if k.endswith("_pFCandsIdx") or k.endswith("_jetIdx"):
                     branchesInit[k] = uproot3.newbranch(np.dtype("i4"), size=nKey)
                 else:
                     branchesInit[k] = uproot3.newbranch(np.dtype("f8"), size=nKey)
@@ -146,7 +171,7 @@ def main(inputFiles, outputFile, fileType, processorName, chunksize, maxchunks, 
         treename = "Events",
         processor_instance = getattr(processorPreSelection, processorName)(fileType),
         executor = processor.iterative_executor,
-        executor_args = {"schema": BaseSchema, "workers": nworkers},
+        executor_args = {"schema": NanoAODSchema, "workers": nworkers},
         chunksize = chunksize,
         maxchunks = maxchunks
         )
@@ -154,6 +179,10 @@ def main(inputFiles, outputFile, fileType, processorName, chunksize, maxchunks, 
     ## Print out cutflow
     cutflow = output.pop("cutflow")
     efficiencies = print_cutflow(cutflow)
+
+
+    ## Delete empty fields
+    delete_empty_fields(output, debug)
 
     ## Making output ROOT file
     if efficiencies["totalEfficiency"] == 0.:
@@ -187,7 +216,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-t", "--fileType",
         help="Input file type, mandatory argument",
-        choices=["PFnano102X", "PFnano106X"],
+        choices=["PFNanoAOD_102X", "PFNanoAOD_106X_v01", "PFNanoAOD_106X_v02"],
         required=True
         )
     parser.add_argument(
