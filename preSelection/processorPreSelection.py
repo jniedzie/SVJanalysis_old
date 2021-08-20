@@ -1,14 +1,10 @@
 from coffea import processor
-from coffea.nanoevents.methods import vector
 import awkward as ak
-import numpy as np
-from collections import OrderedDict
 import sys
 
 sys.path.append("../utilities/")
 import nameUtilities as nameutl
 import coffeaUtilities as cfutl
-import PtEtaPhiMLorentzVectorUtilities as vecutl
 
 import objects as obj
 
@@ -25,179 +21,131 @@ MET_FILTERS = (
 
 
 
-def apply_tchannel_cuts(events, output):
-    """t channel pre-selection cuts."""
+def apply_tchannel_cuts(events, accumulator):
+    """t channel pre-selection cuts.
+
+    Args:
+        events (awkward.highlevel.Array): the Events TTree opened with uproot
+        accumulator (coffea.processor.accumulator.dict_accumulator)
+
+    Returns:
+        None
+    """
 
     ## Highest efficiency HLT trigger
     events = events[events.HLT.PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60]
-    output["cutflow"]["trigger"] += ak.sum(events.genWeight)
+    accumulator["cutflow"]["trigger"] = ak.sum(events.genWeight)
 
     ## MET filters
     for METFilter in MET_FILTERS:
         events = events[getattr(events.Flag, METFilter)]
-        output["cutflow"][METFilter] += ak.sum(events.genWeight)
-
-    ## Lepton veto
-    # to be written...
+        accumulator["cutflow"][METFilter] = ak.sum(events.genWeight)
 
     return events
 
 
-def init_pf_cands_dict():
+def fill_collection_variables(accumulator, objects, collection_name):
+    """Add collection variables to accumulator.
 
-    pf_cands_dict = {
-        "nPFCands"       : cfutl.column_accumulator(np.int64),
-        "PFCands_eta"    : cfutl.column_accumulator(object),
-        "PFCands_mass"   : cfutl.column_accumulator(object),
-        "PFCands_phi"    : cfutl.column_accumulator(object),
-        "PFCands_pt"     : cfutl.column_accumulator(object),
-        "PFCands_trkChi2": cfutl.column_accumulator(object),
-        "PFCands_vtxChi2": cfutl.column_accumulator(object),
-        "PFCands_charge" : cfutl.column_accumulator(object),
-        "PFCands_pdgId"  : cfutl.column_accumulator(object),
-        }
+    Args:
+        accumulator (coffea.processor.accumulator.dict_accumulator)
+        objects (Jets, PfCands, JetPfCandsMatchingTable)
+        collection_name (str)
 
-    return pf_cands_dict
+    Returns:
+        None
+    """
 
-
-def init_ak4_jets_dicts():
-
-    pf_cands_matching_dict = {
-        "nJetPFCands"          : cfutl.column_accumulator(np.int64),
-        "JetPFCands_jetIdx"    : cfutl.column_accumulator(object),
-        "JetPFCands_pFCandsIdx": cfutl.column_accumulator(object),
-        }
-
-    jet_dict = {
-        "nJet"         : cfutl.column_accumulator(np.int64),
-        "Jet_pt"       : cfutl.column_accumulator(object),
-        "Jet_eta"      : cfutl.column_accumulator(object),
-        "Jet_phi"      : cfutl.column_accumulator(object),
-        "Jet_mass"     : cfutl.column_accumulator(object),
-        "Jet_chHEF"    : cfutl.column_accumulator(object),
-        "Jet_neHEF"    : cfutl.column_accumulator(object),
-    }
-
-    return jet_dict, pf_cands_matching_dict
-
-
-def init_ak8_jets_dicts():
-
-    pf_cands_matching_dict = {
-        "nFatJetPFCands"          : cfutl.column_accumulator(np.int64),
-        "FatJetPFCands_jetIdx"    : cfutl.column_accumulator(object),
-        "FatJetPFCands_pFCandsIdx": cfutl.column_accumulator(object),
-        }
-
-    jet_dict = {
-        "nFatJet"         : cfutl.column_accumulator(np.int64),
-        "FatJet_pt"       : cfutl.column_accumulator(object),
-        "FatJet_eta"      : cfutl.column_accumulator(object),
-        "FatJet_phi"      : cfutl.column_accumulator(object),
-        "FatJet_mass"     : cfutl.column_accumulator(object),
-        "FatJet_msoftdrop": cfutl.column_accumulator(object),
-        "FatJet_n2b1"     : cfutl.column_accumulator(object),
-        "FatJet_n3b1"     : cfutl.column_accumulator(object),
-        "FatJet_tau1"     : cfutl.column_accumulator(object),
-        "FatJet_tau2"     : cfutl.column_accumulator(object),
-        "FatJet_tau3"     : cfutl.column_accumulator(object),
-        "FatJet_tau4"     : cfutl.column_accumulator(object),
-    }
-
-    return jet_dict, pf_cands_matching_dict
-
-
-def init_event_variables_dict():
-
-    event_variables_dict = {
-        # MET
-        "MET_phi"         : cfutl.column_accumulator(np.float64),
-        "MET_pt"          : cfutl.column_accumulator(np.float64),
-        "MET_significance": cfutl.column_accumulator(np.float64),
-        "MET_sumEt"       : cfutl.column_accumulator(np.float64),
-        "PuppiMET_phi"    : cfutl.column_accumulator(np.float64),
-        "PuppiMET_pt"     : cfutl.column_accumulator(np.float64),
-        "PuppiMET_sumEt"  : cfutl.column_accumulator(np.float64),
-        "RawMET_phi"      : cfutl.column_accumulator(np.float64),
-        "RawMET_pt"       : cfutl.column_accumulator(np.float64),
-        "RawMET_sumEt"    : cfutl.column_accumulator(np.float64),
-        # Event weight
-        "genWeight"       : cfutl.column_accumulator(np.float64),
-    }
-
-    return event_variables_dict
-
-
-
-def init_accumulator(dicts):
-
-    accumulator = processor.dict_accumulator({
-        ## Events and jet collections variables
-        **dicts,
-
-        ## Cut efficiencies
-        **{ "cutflow": processor.defaultdict_accumulator(int) },
-
-        })
-
-    return accumulator
-
-
-def fill_collection_variables(output, objects, collection_name):
-
-    output["n"+collection_name] += cfutl.accumulate(objects.n)
+    accumulator["n"+collection_name] = cfutl.accumulate(objects.n)
 
     for variable in objects.variables:
-        output[collection_name + "_" + variable] += cfutl.accumulate(getattr(objects, variable))
+        accumulator[collection_name + "_" + variable] = cfutl.accumulate(getattr(objects, variable))
  
     return
 
-def fill_jets_variables(output, good_jets, jet_algo_name):
+
+def fill_jets_variables(accumulator, good_jets, jet_algo_name):
+    """Add jet variables to accumulator.
+
+    Args:
+        accumulator (coffea.processor.accumulator.dict_accumulator)
+        good_jets (Jets)
+        jet_algo_name (str)
+
+    Returns:
+        None
+    """
 
     jet_collection_name = nameutl.jet_algo_name_to_jet_collection_name(jet_algo_name)
-    fill_collection_variables(output, good_jets, jet_collection_name)
+    fill_collection_variables(accumulator, good_jets, jet_collection_name)
 
     return
 
 
-def fill_pf_cands_variables(output, good_pf_cands):
+def fill_pf_cands_variables(accumulator, good_pf_cands):
+    """Add PF candidates variables to accumulator.
 
-    fill_collection_variables(output, good_pf_cands, "PFCands")
+    Args:
+        accumulator (coffea.processor.accumulator.dict_accumulator)
+        good_pf_cands (PfCands)
+
+    Returns:
+        None
+    """
+
+    fill_collection_variables(accumulator, good_pf_cands, "PFCands")
 
     return
  
 
-def fill_jet_pf_cands_matching_table(output, good_jet_pf_cands_matching_table, jet_algo_name):
+def fill_jet_pf_cands_matching_table(accumulator, good_jet_pf_cands_matching_table, jet_algo_name):
+    """Add jet PF candidates matching table to accumulator.
+
+    Args:
+        accumulator (coffea.processor.accumulator.dict_accumulator)
+        good_jet_pf_cands_matching_table (JetPfCandsMatchingTable)
+        jet_algo_name (str)
+
+    Returns:
+        None
+    """
 
     jet_collection_name = nameutl.jet_algo_name_to_jet_collection_name(jet_algo_name)
-    fill_collection_variables(output, good_jet_pf_cands_matching_table, jet_collection_name + "PFCands")
+    fill_collection_variables(accumulator, good_jet_pf_cands_matching_table, jet_collection_name + "PFCands")
 
     return
 
 
-def fill_event_variables(output, events):
+def fill_event_variables(accumulator, events):
+    """Add event variables to accumulator.
 
-    #output["MET_phi"]          += cfutl.accumulate(ak.to_numpy(ak.flatten(events.MET_phi         , axis=None)))
-    output["MET_phi"]          += cfutl.accumulate(events.MET.phi)
-    output["MET_pt"]           += cfutl.accumulate(events.MET.pt)
-    output["MET_significance"] += cfutl.accumulate(events.MET.significance)
-    output["MET_sumEt"]        += cfutl.accumulate(events.MET.sumEt)
-    output["PuppiMET_phi"]     += cfutl.accumulate(events.MET.phi)
-    output["PuppiMET_pt"]      += cfutl.accumulate(events.MET.pt)
-    output["PuppiMET_sumEt"]   += cfutl.accumulate(events.MET.sumEt)
-    output["RawMET_phi"]       += cfutl.accumulate(events.MET.phi)
-    output["RawMET_pt"]        += cfutl.accumulate(events.MET.pt)
-    output["RawMET_sumEt"]     += cfutl.accumulate(events.MET.sumEt)
+    Args:
+        accumulator (coffea.processor.accumulator.dict_accumulator)
+        events (awkward.highlevel.Array): the Events TTree opened with uproot
 
-    output["genWeight"]        += cfutl.accumulate(events.genWeight)
+    Returns:
+        None
+    """
+
+    accumulator["MET_phi"]          = cfutl.accumulate(events.MET.phi)
+    accumulator["MET_pt"]           = cfutl.accumulate(events.MET.pt)
+    accumulator["MET_significance"] = cfutl.accumulate(events.MET.significance)
+    accumulator["MET_sumEt"]        = cfutl.accumulate(events.MET.sumEt)
+    accumulator["PuppiMET_phi"]     = cfutl.accumulate(events.MET.phi)
+    accumulator["PuppiMET_pt"]      = cfutl.accumulate(events.MET.pt)
+    accumulator["PuppiMET_sumEt"]   = cfutl.accumulate(events.MET.sumEt)
+    accumulator["RawMET_phi"]       = cfutl.accumulate(events.MET.phi)
+    accumulator["RawMET_pt"]        = cfutl.accumulate(events.MET.pt)
+    accumulator["RawMET_sumEt"]     = cfutl.accumulate(events.MET.sumEt)
+
+    accumulator["genWeight"]        = cfutl.accumulate(events.genWeight)
 
     return
 
 
 
 class Preselection_tchannel(processor.ProcessorABC):
-    """
-    Make jagged array with selected events and objects.
+    """Make coffea accumulator containing events branches and cutflow.
 
     Selects events:
        * passing higest efficiency trigger (HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60, evaluated on baseline model)
@@ -205,29 +153,21 @@ class Preselection_tchannel(processor.ProcessorABC):
     Selects objects:
        * AK8 jets satisfying pt > 200 GeV and |eta| < 2.4
        * AK4 jets satisfying pt > 30  GeV and |eta| < 2.4
-       * PF candidates for good AK4 and AK8 jets (102X only)
-
     """
 
-    def __init__(self, input_file_type="master"):
-        """Define all variables to be stored. Transform data sturcture to match PF nano AOD master."""
+    def __init__(self, input_file_type="PFNanoAOD_106X_v02"):
+        """
+        Args:
+            input_file_type (str)
+
+        Returns:
+            None
+        """
 
         self.input_file_type = input_file_type
 
-        ## Define accumulator
-        pf_cands_dict = init_pf_cands_dict()
-        ak4_jet_dict, ak4_jet_pf_cands_matching_dict = init_ak4_jets_dicts()
-        ak8_jet_dict, ak8_jet_pf_cands_matching_dict = init_ak8_jets_dicts()
-        event_variables_dict = init_event_variables_dict()
-        self._accumulator = init_accumulator(
-            {**event_variables_dict,
-             **ak4_jet_dict,
-             **ak8_jet_dict,
-             **ak4_jet_pf_cands_matching_dict,
-             **ak8_jet_pf_cands_matching_dict,
-             **pf_cands_dict,
-             }
-        )
+        # By using dict_accumulator, the branches type do not have to be defined
+        self._accumulator = processor.dict_accumulator()
 
 
     @property
@@ -236,31 +176,39 @@ class Preselection_tchannel(processor.ProcessorABC):
 
 
     def process(self, events):
-        """Apply cuts."""
+        """Apply cuts and fill accumulator.
 
-        output = self.accumulator.identity()
+        Args:
+	    events (awkward.highlevel.Array): the Events TTree opened with uproot
 
-        output["cutflow"]["all"] += ak.sum(events.genWeight)
+        Returns:
+	    coffea.processor.accumulator.dict_accumulator
+        """
+
+        accumulator = self.accumulator.identity()
+
+        accumulator["cutflow"] = processor.defaultdict_accumulator(float)
+        accumulator["cutflow"]["all"] = ak.sum(events.genWeight)
 
         ## Event selection
-        events = apply_tchannel_cuts(events, output)
-        good_ak4_jets = obj.GoodJets(events, "AK4", self.input_file_type, cut="(jet.pt > 30 ) & (np.abs(jet.eta) < 2.4)")
-        good_ak8_jets = obj.GoodJets(events, "AK8", self.input_file_type, cut="(jet.pt > 200) & (np.abs(jet.eta) < 2.4)")
+        events = apply_tchannel_cuts(events, accumulator)
+        good_ak4_jets = obj.Jets(events, "AK4", self.input_file_type, cut="(jet.pt > 30 ) & (np.abs(jet.eta) < 2.4)")
+        good_ak8_jets = obj.Jets(events, "AK8", self.input_file_type, cut="(jet.pt > 200) & (np.abs(jet.eta) < 2.4)")
 
         # Good PF candidates
-        good_pf_cands = obj.GoodPfCands(events, self.input_file_type)
-        good_ak4_jet_pf_cands_matching_table = obj.GoodJetPfCandsMatchingTable(events, good_ak4_jets, "AK4", self.input_file_type)
-        good_ak8_jet_pf_cands_matching_table = obj.GoodJetPfCandsMatchingTable(events, good_ak8_jets, "AK8", self.input_file_type)
+        good_pf_cands = obj.PfCands(events, self.input_file_type)
+        good_ak4_jet_pf_cands_matching_table = obj.JetPfCandsMatchingTable(events, good_ak4_jets, "AK4", self.input_file_type)
+        good_ak8_jet_pf_cands_matching_table = obj.JetPfCandsMatchingTable(events, good_ak8_jets, "AK8", self.input_file_type)
 
         if ak.count(events.genWeight) > 0:  # if there are events left after pre-selection cuts for that chunk
-            fill_event_variables(output, events)
-            fill_jets_variables(output, good_ak4_jets, "AK4")
-            fill_jets_variables(output, good_ak8_jets, "AK8")
-            fill_pf_cands_variables(output, good_pf_cands)
-            fill_jet_pf_cands_matching_table(output, good_ak4_jet_pf_cands_matching_table, "AK4")
-            fill_jet_pf_cands_matching_table(output, good_ak8_jet_pf_cands_matching_table, "AK8")
+            fill_event_variables(accumulator, events)
+            fill_jets_variables(accumulator, good_ak4_jets, "AK4")
+            fill_jets_variables(accumulator, good_ak8_jets, "AK8")
+            fill_pf_cands_variables(accumulator, good_pf_cands)
+            fill_jet_pf_cands_matching_table(accumulator, good_ak4_jet_pf_cands_matching_table, "AK4")
+            fill_jet_pf_cands_matching_table(accumulator, good_ak8_jet_pf_cands_matching_table, "AK8")
 
-        return output
+        return accumulator
 
 
     def postprocess(self, accumulator):
