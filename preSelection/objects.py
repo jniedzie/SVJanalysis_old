@@ -5,18 +5,25 @@ import sys
 sys.path.append("../utilities/")
 import nameUtilities as nameutl
     
-## TODO: doctrings
 
 ## Functions needed to take care of the reindixing of jets
 ## e.g. modification of *_jetIdx variables due to good jets selection
 
 def true_indices(ak_array):
-    """
-    Input: ak array with boolean values corresponding with structure of a branch of an Events tree
-           or an iterable with similar jagged structure.
-           e.g. [ [True, False, True], [True], [], [False, True] ]
-    Return a jagged list with indices of the jagged array that are true.
-           e.g. [ [0, 3], [0], [], [1] ]
+    """Returns True indice in jagged array.
+
+    Args:
+        ak_array (awkard.highlevel.Array[bool]): 2D ak array with boolean values
+           with structure of a branch of an Events tree or an iterable with
+           similar jagged structure.
+
+    Returns:
+        list[list[int]]: a jagged list with indices of the jagged array that are true.
+
+    Examples:
+        >>> ak_array = [ [True, False, True], [True], [], [False, True] ]
+        >>> true_indices(ak_array)
+        [ [0, 2], [0], [], [1] ]
     """
 
     true_indices = [ [ idx for idx, x in enumerate(y) if x ] for y in ak_array ]
@@ -25,37 +32,53 @@ def true_indices(ak_array):
         
 def is_in(array1, array2):
     """
-    Input: 2 jagged arrays
-    Return a boolean jagged array
-    e.g. array1 = [ [0, 1, 1, 2, 2, 3], [0, 0, 1], [0, 1, 1, 2] ]
-         array2 = [ [0, 3], [], [0, 2] ]
-         return [ [True, False, False, False, False, True], [False, False, False] [True, False, False, True]]
+    Args:
+        array1 (awkard.highlevel.Array[int])
+        array2 (awkard.highlevel.Array[int])
+
+    Returns:
+        awkard.highlevel.Array[bool]
+
+    Examples:
+        >>> array1 = [ [0, 1, 1, 2, 2, 3], [0, 0, 1], [0, 1, 1, 2] ]
+        >>> array2 = [ [0, 3], [], [0, 2] ]
+        >>> is_in(array1, array2)
+        [ [True, False, False, False, False, True], [False, False, False] [True, False, False, True]]
     """
 
     return ak.Array([ [ True if x in y2 else False for x in y1 ] for y1, y2 in zip(array1, array2) ])
 
 
 def discrete_function(X, Y, x):
-    """
-    Input X = (x1, x2, ..., xn)
-          Y = (y1, y2, ..., yn)
-          x in X
-    Discrete function f(xi) = yi 
-    Return f(x)
+    """Discrete function f(xi) = yi.
+
+    Args:
+        X (list[T], tuple[T], array[T]): (x1, x2, ..., xn)
+        Y (list[U], tuple[U], array[U]): (y1, y2, ..., yn)
+        x (T): element in X
+    
+    Returns:
+        U: f(x) = y
     """
 
     X = list(X)
     Y = list(Y)
     idx = X.index(x)
+
     return Y[idx]
 
 
 def make_new_jet_indices(filter_, jet_indices):
-    """
-    Input:
-      * filter_   : jagged array with boolean values corresponding the selected jets
-      * jetIndices: jagged array with jet indices
-    Return jagged array of jet indices for selected jets
+    """Update jet indices after selecting some jets.
+
+    Args
+        filter_ (awkard.highlevel.Array):
+            jagged array with boolean values corresponding the selected jets
+        jetIndices (awkard.highlevel.Array): 
+            jagged array with jet indices
+
+    Returns:
+        awkard.highlevel.Array: jagged array of jet indices for selected jets
     """
 
     new_jet_indices = []
@@ -68,17 +91,18 @@ def make_new_jet_indices(filter_, jet_indices):
     return ak.Array(new_jet_indices)
 
 
-def count(ak_array, axis=1):
-    """Returns None if ak array is empty, else returns ak.count."""
-
-    if ak.size(ak.flatten(ak_array)) == 0:
-        return None
-    else:
-        return ak.count(ak_array, axis=axis)
-
-
 def make_ak_array_collection(collection, variables):
-    """ ... """
+    """Make jagged array with fields.
+
+    Args:
+        collection (object having awkward.highlevel.Array attributes)
+        variables (dict[str]):
+            Keys are attributes names of the object collection
+            Values are fields names to use in the ak array
+
+    Returns:
+        awkward.highlevel.Array
+    """
 
     return ak.zip({
                final_variable_name: getattr(collection, initial_variable_name)
@@ -88,10 +112,19 @@ def make_ak_array_collection(collection, variables):
 
 
 
-class GoodJets():
-    """Make collection of good AK8 jets."""
+class Jets():
 
     def __init__(self, events, jet_algo_name, input_file_type, cut=None):
+        """
+        Args:
+            events (awkward.highlevel.Array): the Events TTree opened with uproot
+            jet_algo_name (str)
+            input_file_type (str)
+            cut (str or None)
+
+        Returns:
+            None
+        """
 
         if input_file_type == "PFNanoAOD_106X_v01" or input_file_type == "PFNanoAOD_106X_v02":
             jet_collection_name = nameutl.jet_algo_name_to_jet_collection_name(jet_algo_name)
@@ -140,6 +173,14 @@ class GoodJets():
 
 
     def apply_cut(self, cut):
+        """
+        Args:
+            cut (awkward.highlevel.Array[bool])
+
+        Returns:
+            None
+        """
+
         self.jet = self.jet[cut]
         self.n = self.n[cut]
         self.filter_ = self.filter_[cut]
@@ -199,17 +240,16 @@ class GoodJets():
 
 
 
-class GoodPfCands():
+class PfCands():
 
     def __init__(self, events, input_file_type):
-        """Get .
-
+        """
         Args:
-            events (ak.Array): the Events TTree opened with uproot.
+            events (awkward.highlevel.Array): the Events TTree opened with uproot
             input_file_type (str)
 
         Returns:
-            awkward.Array: ak array with fields 
+            None
         """
 
         ## For PF nano AOD 106X and master branches
@@ -276,10 +316,19 @@ class GoodPfCands():
 
 
 
-class GoodJetPfCandsMatchingTable():
-    """..."""
+class JetPfCandsMatchingTable():
 
     def __init__(self, events, good_jets, jet_algo_name, input_file_type):
+        """
+        Args:
+            events (awkward.highlevel.Array): the Events TTree opened with uproot
+            good_jets (Jets)
+            jet_algo_name (str)
+            input_file_type (str)
+
+        Returns:
+            None
+        """
 
         if input_file_type == "PFNanoAOD_106X_v01" or input_file_type == "PFNanoAOD_106X_v02":
 
@@ -303,7 +352,7 @@ class GoodJetPfCandsMatchingTable():
             # Get PF candidates indices in good fat jets
             self.pFCandsIdx = getattr(table, cand_idx_name)[self.filter_]
             # Number of PF candidates
-            self.n = count(self.jetIdx, axis=1)
+            self.n = ak.count(self.jetIdx, axis=1)
 
         self.variables = ["jetIdx", "pFCandsIdx"]
 
