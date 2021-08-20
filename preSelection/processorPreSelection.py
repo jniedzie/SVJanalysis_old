@@ -44,19 +44,21 @@ def apply_tchannel_cuts(events, accumulator):
     return events
 
 
+
 def fill_collection_variables(accumulator, objects, collection_name):
     """Add collection variables to accumulator.
 
     Args:
         accumulator (coffea.processor.accumulator.dict_accumulator)
-        objects (Jets, PfCands, JetPfCandsMatchingTable)
+        objects (Jets, PfCands, JetPfCandsMatchingTable, Met)
         collection_name (str)
 
     Returns:
         None
     """
 
-    accumulator["n"+collection_name] = cfutl.accumulate(objects.n)
+    if hasattr(objects, "n"):
+        accumulator["n"+collection_name] = cfutl.accumulate(objects.n)
 
     for variable in objects.variables:
         accumulator[collection_name + "_" + variable] = cfutl.accumulate(getattr(objects, variable))
@@ -116,29 +118,19 @@ def fill_jet_pf_cands_matching_table(accumulator, good_jet_pf_cands_matching_tab
     return
 
 
-def fill_event_variables(accumulator, events):
-    """Add event variables to accumulator.
+def fill_single_event_level_variables(accumulator, single_event_level_collections):
+    """Add single event level variables to accumulator.
 
     Args:
         accumulator (coffea.processor.accumulator.dict_accumulator)
-        events (awkward.highlevel.Array): the Events TTree opened with uproot
+        single_event_level_collections (SingleEventLevel)
 
     Returns:
         None
     """
 
-    accumulator["MET_phi"]          = cfutl.accumulate(events.MET.phi)
-    accumulator["MET_pt"]           = cfutl.accumulate(events.MET.pt)
-    accumulator["MET_significance"] = cfutl.accumulate(events.MET.significance)
-    accumulator["MET_sumEt"]        = cfutl.accumulate(events.MET.sumEt)
-    accumulator["PuppiMET_phi"]     = cfutl.accumulate(events.MET.phi)
-    accumulator["PuppiMET_pt"]      = cfutl.accumulate(events.MET.pt)
-    accumulator["PuppiMET_sumEt"]   = cfutl.accumulate(events.MET.sumEt)
-    accumulator["RawMET_phi"]       = cfutl.accumulate(events.MET.phi)
-    accumulator["RawMET_pt"]        = cfutl.accumulate(events.MET.pt)
-    accumulator["RawMET_sumEt"]     = cfutl.accumulate(events.MET.sumEt)
-
-    accumulator["genWeight"]        = cfutl.accumulate(events.genWeight)
+    for variable in single_event_level_collections.variables:
+        accumulator[variable] = cfutl.accumulate(getattr(single_event_level_collections, variable))
 
     return
 
@@ -179,10 +171,10 @@ class Preselection_tchannel(processor.ProcessorABC):
         """Apply cuts and fill accumulator.
 
         Args:
-	    events (awkward.highlevel.Array): the Events TTree opened with uproot
+            events (awkward.highlevel.Array): the Events TTree opened with uproot
 
         Returns:
-	    coffea.processor.accumulator.dict_accumulator
+            coffea.processor.accumulator.dict_accumulator
         """
 
         accumulator = self.accumulator.identity()
@@ -192,6 +184,8 @@ class Preselection_tchannel(processor.ProcessorABC):
 
         ## Event selection
         events = apply_tchannel_cuts(events, accumulator)
+
+        # Good jets
         good_ak4_jets = obj.Jets(events, "AK4", self.input_file_type, cut="(jet.pt > 30 ) & (np.abs(jet.eta) < 2.4)")
         good_ak8_jets = obj.Jets(events, "AK8", self.input_file_type, cut="(jet.pt > 200) & (np.abs(jet.eta) < 2.4)")
 
@@ -200,8 +194,17 @@ class Preselection_tchannel(processor.ProcessorABC):
         good_ak4_jet_pf_cands_matching_table = obj.JetPfCandsMatchingTable(events, good_ak4_jets, "AK4", self.input_file_type)
         good_ak8_jet_pf_cands_matching_table = obj.JetPfCandsMatchingTable(events, good_ak8_jets, "AK8", self.input_file_type)
 
+        # MET
+        met_flavors = ["MET", "PuppiMET", "RawMET"]
+        mets = { met_flavor: obj.Met(events, met_flavor, self.input_file_type) for met_flavor in met_flavors }
+
+        # Single event level quantities
+        single_event_level = obj.SingleEventLevel(events, self.input_file_type)
+
         if ak.count(events.genWeight) > 0:  # if there are events left after pre-selection cuts for that chunk
-            fill_event_variables(accumulator, events)
+            fill_single_event_level_variables(accumulator, single_event_level)
+            for met_flavor, met in mets.items():
+                fill_collection_variables(accumulator, met, met_flavor)
             fill_jets_variables(accumulator, good_ak4_jets, "AK4")
             fill_jets_variables(accumulator, good_ak8_jets, "AK8")
             fill_pf_cands_variables(accumulator, good_pf_cands)

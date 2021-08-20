@@ -112,6 +112,77 @@ def make_ak_array_collection(collection, variables):
 
 
 
+class SingleEventLevel():
+
+    def __init__(self, events, input_file_type):
+        """
+        Args:
+            events (awkward.highlevel.Array): the Events TTree opened with uproot
+            input_file_type (str)
+
+        Returns:
+            None
+        """
+
+        if input_file_type == "PFNanoAOD_106X_v01" or input_file_type == "PFNanoAOD_106X_v02":
+            self.event_level = ak.zip({
+                "genWeight": events.genWeight
+            })
+        else:
+            # Define here self.event_level
+            pass
+
+        self.variables = self.event_level.fields
+
+
+    @property
+    def genWeight(self):
+        return self.event_level.genWeight
+
+
+
+class Met():
+
+    def __init__(self, events, met_flavor, input_file_type):
+        """
+        Args:
+            events (awkward.highlevel.Array): the Events TTree opened with uproot
+            input_file_type (str)
+            met_flavor (str): e.g. MET, PuppiMET
+
+        Returns:
+            None
+        """
+
+        ## For PF nano AOD 106X and master branches
+        if input_file_type == "PFNanoAOD_106X_v01" or input_file_type == "PFNanoAOD_106X_v02":
+            met = getattr(events, met_flavor)
+            met_variables = {
+                "phi"  : "phi",
+                "pt"   : "pt",
+                "sumEt": "sumEt",
+            }
+        else:
+            # Define here met and met_variables
+            pass
+
+        self.met = make_ak_array_collection(met, met_variables)
+        self.variables = self.met.fields
+
+
+    @property
+    def pt(self):
+        return self.met.pt
+
+    @property
+    def phi(self):
+        return self.met.phi
+
+    @property
+    def sumEt(self):
+        return self.met.sumEt
+
+
 class Jets():
 
     def __init__(self, events, jet_algo_name, input_file_type, cut=None):
