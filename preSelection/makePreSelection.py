@@ -1,165 +1,143 @@
 from coffea import processor
-from coffea.nanoevents import BaseSchema
-import awkward as ak
-import awkward0 as ak0
+from coffea.nanoevents import NanoAODSchema
 import uproot3
 import numpy as np
+import sys
 import os
 import time
 import argparse
 from collections import OrderedDict
 
+sys.path.append("../utilities/")
+import uproot3Utilities as uproot3utl
 import processorPreSelection
 
 
 def print_cutflow(cutflow):
-    """
-    Print cut efficiencies for cuts needed for defining some of the variables.
-    E.g. for deltaR between leading 2 jets, events needs to have at least 2 jets.
+    """Print cut efficiencies for cuts needed for defining some of the variables.
+
+    For instance, to compute deltaR between leading 2 jets, events needs
+    to have at least 2 jets.
+
+    Args:
+        cutflow (dict[coffea.processor.defaultdict_accumulator]):
+            Keys are cut names
+            Values are numbers of processed events (sum of gen weights)
+ 
+    Returns:
+        dict[float]
+            Keys are cut names
+            Values are absolute efficiencies
     """
 
-    lenCol1 = max([ len(k) for k in cutflow.keys() ])
-    efficiencies = OrderedDict()
+    len_column1 = max([ len(k) for k in cutflow.keys() ])
+    efficiencies = {}
 
     print("\nCutflow:")
-    print("\tCut" + (lenCol1-3)*" " + "  Abs. eff. [%]   Rel. eff. [%]")
-
-    nAll = cutflow["all"]
+    print("\tCut" + (len_column1-3)*" " + "  Abs. eff. [%]   Rel. eff. [%]")
+    n_all = cutflow["all"]
     for cut, n in cutflow.items():
         if cut != "all":
-            absoluteEfficiency = 100*n/nAll
-            if nPreviousCut > 0.:
-                relativeEfficiency = 100*n/nPreviousCut
+            absolute_efficiency = 100*n/n_all
+            if n_previous_cut > 0.:
+                relative_efficiency = 100*n/n_previous_cut
             else:
-                relativeEfficiency = np.nan
-            spaces = (lenCol1-len(cut)+(absoluteEfficiency<10))*" "
-            print("\t%s%s  %.2f           %.2f" %(cut, spaces, absoluteEfficiency, relativeEfficiency))
-            efficiencies[cut] = absoluteEfficiency/100
-        nPreviousCut = n
+                relative_efficiency = np.nan
+            spaces = (len_column1-len(cut)+(absolute_efficiency<10))*" "
+            print("\t%s%s  %.2f           %.2f" %(cut, spaces, absolute_efficiency, relative_efficiency))
+            efficiencies[cut] = absolute_efficiency/100
+        n_previous_cut = n
     
-    efficiencies["totalEfficiency"] = absoluteEfficiency
-    
+    efficiencies["totalEfficiency"] = absolute_efficiency
+ 
     return efficiencies
 
 
-def make_events_branches(accumulator, debug):
-    """Make branches for Events tree."""
+def write_root_file(output_file, events, efficiencies, debug):
+    """Write ROOT file with Events and Efficiencies TTrees.
 
-    branches = {}
-    branchesInit = {}
-    lenKeys = []
+    Args:
+        output_file (str)
+        events (coffea.processor.accumulator.dict_accumulator)
+            Keys are Events branch names
+            Values are branches (coffea.processor.accumulator.column_accumulator)
+        efficiencies (dict[float])
+            Keys are Efficicies branch names
+            Values are efficiencies (float)
+        debug (bool)
 
-    # Finding keys giving the length of jagged arrays
-    for k, v in accumulator.items():
-        nKey = "n"+str(k.split("_")[0])
-        if (not k.startswith("n")) and (nKey in accumulator.keys()):
-            lenKeys.append(nKey)
-
-    # Making branches
-    # Need to use ak0 because it is not yet implemented in uproot4 i.e. ak1 (Feb. 2021)
-    for k, v in accumulator.items():
-        if debug:
-            print("%s: %s" %(k, ak.type(ak.Array(v.value))))
-        if not k.startswith("n"):
-            nKey = "n"+str(k.split("_")[0])
-            if nKey in lenKeys:
-                branches[k] = ak.to_awkward0(ak.Array(v.value))
-                # Case distinction for type of the jagged-array collections, treated as "object" in the processor
-                # _candIdx and _jetIdx must be saved as integers ("i4") to use array at once syntax like 
-                #     jetIdx = (events.JetPFCandsAK4_jetIdx == ijet)
-                #     candIdx = events.JetPFCandsAK4_candIdx[jetIdx]
-                #     PFcands_eta = events.JetPFCands_eta[candIdx]
-                if k.endswith("_candIdx") or k.endswith("_jetIdx"):
-                    branchesInit[k] = uproot3.newbranch(np.dtype("i4"), size=nKey)
-                else:
-                    branchesInit[k] = uproot3.newbranch(np.dtype("f8"), size=nKey)
-            else:
-                branches[k] = ak.to_awkward0(ak.Array(v.value))
-                branchesInit[k] = uproot3.newbranch(v.value.dtype)
-        else:
-            if k in lenKeys:
-                branches[k] = ak.to_awkward0(ak.Array(v.value))
-            else:
-                branches[k] = ak.to_awkward0(ak.Array(v.value))
-                branchesInit[k] = uproot3.newbranch(v.value.dtype)
-
-    return branches, branchesInit
-
-
-def make_efficiencies_branches(efficiencies):
-    """Make branches for Efficiencies tree."""
-
-    branches = {}
-    branchesInit = {}
-
-    for k, v in efficiencies.items():
-        branchesInit[k] = np.dtype("f8")
-        branches[k] = np.array([v])
-
-    return branches, branchesInit
-
-
-def write_root_file(accumulator, outputFile, efficiencies, debug):
-    """
-    2 trees are written:
-       * Events: standard NTuple events tree
-       * Cuts: a tree with one branch `Efficiency`, having only one leaf, representing pre-selection efficiency
+    Returns:
+        None
     """
 
     # Making branches to write to Events tree
-    branchesEvents, branchesInitEvents = make_events_branches(accumulator, debug)
-    branchesEfficiencies, branchesInitEfficiencies = make_efficiencies_branches(efficiencies)
+    branches_events, branches_init_events = uproot3utl.make_branches(events, debug)
+    branches_efficiencies, branches_init_efficiencies = uproot3utl.make_branches(efficiencies, debug)
 
     if debug:
         print("\nEvents branches keys:")
-        print(branchesEvents.keys())
+        print(branches_events.keys())
         print("\nEvents branchesInit keys:")
-        print(branchesInitEvents.keys())
+        print(branches_init_events.keys())
 
 
-    # Save branches to ROOT file
-    # Need to use uproot3 because it is not implemented yet in uproot4 (Feb. 2021)
-    with uproot3.recreate(outputFile) as f:
-        f["Events"] = uproot3.newtree(branchesInitEvents)
-        f["Events"].extend(branchesEvents)
-        print("\nTTree Events saved to output file %s" %outputFile)
+    with uproot3.recreate(output_file) as root_file:
+        # Save events to output ROOT file
+        uproot3utl.write_tree_to_root_file(root_file, "Events", branches_events, branches_init_events)
+        print("\nTTree Events saved to output file %s" %output_file)
 
-        # Save cut efficiency to ROOT file
-        f["Efficiencies"] = uproot3.newtree(branchesInitEfficiencies)
-        f["Efficiencies"].extend(branchesEfficiencies)
-        print("TTree Efficiencies saved to output file %s" %outputFile)
+        # Save cut efficiencies to output ROOT file
+        uproot3utl.write_tree_to_root_file(root_file, "Efficiencies", branches_efficiencies, branches_init_efficiencies)
+        print("TTree Efficiencies saved to output file %s" %output_file)
 
     return
 
 
-def main(inputFiles, outputFile, fileType, processorName, chunksize, maxchunks, nworkers, debug):
+def main(input_files, output_file, file_type, processor_name, chunksize, maxchunks, nworkers, debug):
+    """Produce ROOT file with pre-selected events.
+    
+    Args:
+        input_files (list[str])
+        output_file (str)
+        file_type (str)
+        processor_name (str)
+        chunksize (int)
+        maxchunks (int or None)
+        nworkers (int)
+        debug (bool)
+
+    Returns:
+        None
+    """
 
     print("Input files:")
-    print(inputFiles)
+    print(input_files)
 
     ## Fileset
-    fileset = { "fileset": inputFiles }
+    fileset = { "fileset": input_files }
 
     ## Make pre-selections
-    output = processor.run_uproot_job(
+    accumulator = processor.run_uproot_job(
         fileset,
         treename = "Events",
-        processor_instance = getattr(processorPreSelection, processorName)(fileType),
+        processor_instance = getattr(processorPreSelection, processor_name)(file_type),
         executor = processor.iterative_executor,
-        executor_args = {"schema": BaseSchema, "workers": nworkers},
+        executor_args = {"schema": NanoAODSchema, "workers": nworkers},
         chunksize = chunksize,
         maxchunks = maxchunks
         )
 
     ## Print out cutflow
-    cutflow = output.pop("cutflow")
+    cutflow = accumulator.pop("cutflow")
     efficiencies = print_cutflow(cutflow)
 
     ## Making output ROOT file
     if efficiencies["totalEfficiency"] == 0.:
         print("\nWARNING: 0 event passed pre-selections. Will not write an empty ROOT file.")
     else:
-        write_root_file(output, outputFile, efficiencies, debug)
+        write_root_file(output_file, accumulator, efficiencies, debug)
+
+    return
 
 
 if __name__ == "__main__":
@@ -187,7 +165,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-t", "--fileType",
         help="Input file type, mandatory argument",
-        choices=["PFnano102X", "PFnano106X"],
+        choices=["PFNanoAOD_102X", "PFNanoAOD_106X_v01", "PFNanoAOD_106X_v02"],
         required=True
         )
     parser.add_argument(
@@ -240,13 +218,8 @@ if __name__ == "__main__":
         inputFiles = [ x.replace("\n", "") for x in inputFiles ]
         inputFiles = [ x for x in inputFiles if x.endswith(".root") ]
 
-    if args.debug:
-        debug = True
-    else:
-        debug = False
-
     ## Make pre-selection
-    main(inputFiles, args.output, args.fileType, args.processor, args.chunksize, args.maxchunks, args.nworkers, debug)
+    main(inputFiles, args.output, args.fileType, args.processor, args.chunksize, args.maxchunks, args.nworkers, args.debug)
 
 
     elapsed = time.time() - tstart

@@ -1,16 +1,6 @@
 #!/bin/bash
 
-sepath=/pnfs/psi.ch/cms/trivcat/store/user/fleble
+input_file=/pnfs/psi.ch/cms/trivcat/store/user/fleble/SVJ/t_channel/samples/2018/PFNANOAOD/step5_PFNANOAOD_t-channel_mMed-3000_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8_n-1000_part-1.root
 
-chunksize=10000
+python makePreSelection.py -i ${input_file} -o test.root -t PFNanoAOD_106X_v02 -p Preselection_tchannel
 
-mMed=3000
-mDark=20
-rinv=0.3
-alpha=peak
-
-var=mMed-${mMed}_mDark-${mDark}_rinv-${rinv}_alpha-${alpha}_yukawa-1_13TeV-madgraphMLM-pythia8
-ifile=${sepath}/SVJ/t_channel/samples/102X/${var}/NANOAODJMAR/merged.root
-ofile=./test.root
-
-python makePreSelection.py -i ${ifile} -o ${ofile} -t PFnano102X -c ${chunksize} -p Preselection_tchannel
