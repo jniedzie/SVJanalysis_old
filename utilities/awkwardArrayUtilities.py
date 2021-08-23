@@ -112,3 +112,26 @@ def swap_axes(ak_array):
 
 def ak_to_ptyphim_four_vectors(ak_array, jet_idx):
     return np.array([ [ [c.pt, c.rapidity, c.phi, c.mass] for c in ak_array[ievent][ak_array[ievent].jetIdx == jet_idx] ] if ak.count(ak_array[ievent][ak_array[ievent].jetIdx == jet_idx], axis=None)>0 else [[1,1,1,1]] for ievent in range(ak.num(ak_array, axis=0)) ], dtype=object)
+
+
+def obj_to_ak_array(obj):
+    """Convert any input type to an awkward array.
+
+    Args:
+        obj (any type convertible to ak array)
+
+    Returns:
+        awkward.highlevel.Array
+    """
+
+    if isinstance(obj, ak.highlevel.Array):
+        ak_array = obj
+    elif isinstance(obj, np.ndarray):
+        ak_array = ak.Array(obj)
+    elif isinstance(obj, np.float32) or isinstance(obj, np.float64) or isinstance(obj, np.int32) or isinstance(obj, np.int64) \
+        or isinstance(obj, float) or isinstance(obj, int):
+        ak_array = ak.Array([obj])
+    else:
+        print("Unknown type %s" %(type(obj)))
+
+    return ak_array
