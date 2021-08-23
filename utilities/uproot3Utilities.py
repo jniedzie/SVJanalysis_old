@@ -1,6 +1,67 @@
+import coffea
 import numpy as np
 import awkward as ak
 import uproot3
+import re
+import sys
+
+import utilities
+
+
+def get_type(obj):
+    return str(type(obj)).split("'")[1]
+
+
+def send_casting_warning(dtype, new_dtype, branch_name):
+    print("WARNING: Casting branch %s from %s to %s because uproot does not handle %s!" %(branch_name, dtype, new_dtype, dtype))
+
+
+def send_max_value_warning(max_value_allowed, branch_name):
+    print("WARNING: Values in branch %s should NOT exceed %d." %(branch_name, max_value_allowed))
+
+
+def get_dtype(branch, branch_name="\b"):
+
+    if isinstance(branch, coffea.processor.accumulator.column_accumulator) \
+    or isinstance(branch, np.ndarray):
+        dtype = branch.dtype
+
+    elif isinstance(branch, ak.highlevel.Array):
+        dtype = ("%s" %ak.type(branch)).split("*")[-1][1:]
+
+    else:
+        supported_classes = ["coffea.processor.accumulator.column_accumulator", "numpy.ndarray", "awkward.highlevel.Array"]
+        print("ERROR: Branch %s is from an unsupported class: %s" %(branch_name, type(branch)))
+        print("Supported classes:")
+        for class_ in supported_classes: print("\t%s" %class_)
+        sys.exit()
+
+    # uint type is not supported by uproot3
+    # As long as values in the array do not exceed 2147483647 then casting brutaly from uint32 to int32 should be harmless
+    re_search = re.search(r'uint([0-9]+)', dtype)
+    if re_search:
+        nbits = int(re_search.group(1))
+        # int8 cannot be read properly by ROOT yet
+        if nbits == 8:
+            new_dtype = "int16"
+            print_max_value_warning = False
+        # int32, int64, ... are fine
+        else:
+            new_dtype = dtype[1:]
+            print_max_value_warning = True
+
+        send_casting_warning(dtype, new_dtype, branch_name)
+        if print_max_value_warning:
+            max_value_allowed = 2**(nbits-1) - 1
+            send_max_value_warning(max_value_allowed, branch_name)
+        dtype = new_dtype
+
+    #elif dtype == "bool":
+    #    new_dtype = "int32"
+    #    send_casting_warning(dtype, new_dtype, branch_name)
+    #    dtype = new_dtype
+        
+    return dtype
 
 
 def obj_to_ak_array(obj):
@@ -18,7 +79,7 @@ def obj_to_ak_array(obj):
     elif isinstance(obj, np.ndarray):
         ak_array = ak.Array(obj)
     elif isinstance(obj, np.float32) or isinstance(obj, np.float64) or isinstance(obj, np.int32) or isinstance(obj, np.int64) \
-         or isinstance(obj, float) or isinstance(obj, int):
+        or isinstance(obj, float) or isinstance(obj, int):
         ak_array = ak.Array([obj])
     else:
         print("Unknown type %s" %(type(obj)))
@@ -49,6 +110,27 @@ def get_size_branch_names(tree):
     return size_branch_names
 
 
+def run_branch_checks(branches, branches_init, branches_size):
+    """Run some checks on the branches and remove branches failing checks.
+
+    """
+
+    def delete_branch(branch_name, branches, branches_init):
+        branches.pop(branch_name)
+        if branch_name in branches_init.keys():
+            branches_init.pop(branch_name)
+
+    size = utilities.most_common(branches_size.values())
+
+    branches_to_delete = [ branch_name for branch_name, branch_size in branches_size.items() if branch_size != size ]
+    for branch_name in branches_to_delete:
+        print("\nWARNING: Branch %s has size %d while most branches have size %d." %(branch_name, branches_size[branch_name], size))
+        print("         Deleting this branch!")
+        delete_branch(branch_name, branches, branches_init)
+
+    return
+ 
+
 def make_branches(tree, debug=False):
     """Make branches and branches initailiazer to write a tree to a ROOT file.
 
@@ -61,7 +143,7 @@ def make_branches(tree, debug=False):
     """
 
     ## Running sanity checks
-    tree_type = str(type(tree)).split("'")[1]
+    tree_type = get_type(tree)
     allowed_tree_types = ["dict", "coffea.processor.accumulator.dict_accumulator"]
     if tree_type not in allowed_tree_types:
         print("ERROR: Unknown tree type: %s" %tree_type)
@@ -72,46 +154,49 @@ def make_branches(tree, debug=False):
     ## Book dict to return
     branches = {}
     branches_init = {}
+    branches_size = {}
 
     ## Find names of the branches storing the size of jagged array branches
     size_branch_names = get_size_branch_names(tree)
     if debug:
-        print("Size branch names: ", size_branch_names)
+        print("\nSize branch names:")
+        print(size_branch_names)
 
-    ## Making branches and branches_init
+    ## Make branches and branches_init
     #  Need to use ak0 and uproot3 because writing tree to ROOT file is not yet implemented in uproot4 (Feb. 2021)
+    if debug:
+        print("\nFilling branches and branches_init:")
+
     for branch_name, branch in tree.items():
 
         if tree_type == "coffea.processor.accumulator.dict_accumulator":
             branch = branch.value
-            dtype = branch.dtype
-            branch = obj_to_ak_array(branch)
-        elif tree_type == "dict":
-            branch = obj_to_ak_array(branch)
-            dtype = ("%s" %ak.type(branch)).split("*")[-1][1:]
-
+        branch = obj_to_ak_array(branch)
+        #dtype = get_dtype(branch, branch_name)
+        dtype = get_dtype(branch)
+        branches_size[branch_name] = ak.num(branch, axis=0)
         if debug:
-            print("%s: %s" %(branch_name, ak.type(branch)))
+            print("%s:\ttype=%s   dtype=%s" %(branch_name, ak.type(branch), dtype))
 
-
-        # Defining branch
+        # Define branch
         branches[branch_name] = ak.to_awkward0(branch)
 
-        # Defining branch_init
+        # Define branch init
         if not branch_name.startswith("n"):
             nbranch_name = "n"+str(branch_name.split("_")[0])
             if nbranch_name in size_branch_names:
-                # Case distinction for type of the jagged-array collections, treated as "object" in the processor
-                # _pFCandsIdx and _jetIdx must be saved as integers ("i4") to use array at once syntax
-                if branch_name.endswith("Idx"):
-                    branches_init[branch_name] = uproot3.newbranch(np.dtype("i4"), size=nbranch_name)
-                else:
-                    branches_init[branch_name] = uproot3.newbranch(np.dtype("f8"), size=nbranch_name)
+                if dtype == "bool":
+                    new_dtype = "int16"
+                    send_casting_warning(dtype, new_dtype, branch_name)
+                    dtype = new_dtype
+                branches_init[branch_name] = uproot3.newbranch(dtype, size=nbranch_name)
             else:
                 branches_init[branch_name] = uproot3.newbranch(dtype)
         else:
             if branch_name not in size_branch_names:
                 branches_init[branch_name] = uproot3.newbranch(dtype)
+
+    run_branch_checks(branches, branches_init, branches_size)
 
     return branches, branches_init
 

@@ -1,3 +1,4 @@
+from collections import Counter
 import re
 import json
 
@@ -15,6 +16,11 @@ def list2str(L, strForConcatenation=""):
         s = L[0]
         for el in L[1:]: s = s + strForConcatenation + str(el)
         return(s)
+
+def most_common(list_):
+
+    data = Counter(list_)
+    return data.most_common(1)[0][0]
 
 
 def inregex(name, regexList):
