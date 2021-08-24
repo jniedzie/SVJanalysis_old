@@ -1,19 +1,26 @@
-from coffea import processor
-from coffea.nanoevents import BaseSchema
-import awkward as ak
-import uproot
-import uproot3
-import numpy as np
+import sys
 import time
 import argparse
-import sys
+
+import awkward as ak
+import uproot3
+import uproot
 
 sys.path.append("../utilities/")
 import uproot3Utilities as uproot3utl
 
 
 def make_files_list(files_arg):
-    """ ... """
+    """Make list of ROOT files to merge.
+
+    Args:
+        files_arg (str): files argument from the argument parser
+            Comma separated ROOT file names e.g. file1.root,file2.root or
+            text file name with a ROOT file name on each line.
+
+    Returns:
+        list[str]
+    """
 
     # If list of ROOT files in txt file
     if not files_arg.endswith(".root"):
@@ -26,34 +33,158 @@ def make_files_list(files_arg):
     return root_files
 
 
-def make_branches_to_read(file_names, tree_name):
-    """ ... """
+def get_all_branch_names(file_name, tree_name):
+    """Return all the branches name of the tree of a ROOT file.
+
+    Args:
+        file_name (str)
+        tree_name (str)
+
+    Returns:
+        list[str]
+    """
+
+    return uproot.open(file_name)[tree_name].keys()
+
+
+def make_branch_names_to_read_per_file(file_names, tree_name):
+    """Return branches names to read in a tree for each file for branches merging algo.
+
+    For 2 input files file1.root and file2.root with branches nJet, Jet_pt and
+    nJet, Jet_eta in the tree Events, the branches to read are nJet, Jet_pt for
+    file1.root and Jet_eta for file2.root.
+
+    Args:
+        file_names (list[str])
+        tree_name (str)
+
+    Returns:
+        dict[str, str]: Keys are file names, values are branch names
+    """
 
     branches_to_read = {}
-    branches_names_added = []
+    branch_names_added = []
     for ifile, file_name in enumerate(file_names):
-        file_ = uproot3.open(file_name)
+        branches_this_file = get_all_branch_names(file_name, tree_name)
+        branches_to_read[file_name] = [ branch_name for branch_name in branches_this_file if branch_name not in branch_names_added ]
+        branch_names_added = branch_names_added + branches_to_read[file_name]
+
+    return branches_to_read
+
+
+def branches_merging(file_names, tree_name):
+    """Return tree branches for branches merging algorithm.
+
+    Args:
+        file_names (list[str])
+        tree_name (str)
+
+    Returns:
+        dict[str, awkward.highlevel.Array]:
+           Keys are branch names, values are branch arrays
+    """
+
+    branches_to_read = make_branch_names_to_read_per_file(file_names, tree_name)
+    branches = {}
+    for file_name in file_names:
+        tree = uproot.open(file_name + ":" + tree_name)
+        for branch_name in branches_to_read[file_name]:
+            branches[branch_name] = tree[branch_name].array()
+
+    tree_branches = { k: v for k, v in branches.items() }
+
+    return tree_branches
+
+
+def events_merging(file_names, tree_name):
+    """Return tree branches for events merging algorithm.
+
+    Args:
+        file_names (list[str])
+        tree_name (str)
+
+    Returns:
+        dict[str, awkward.highlevel.Array]:
+           Keys are branch names, values are branch arrays
+    """
+
+    branches_to_read = get_all_branch_names(file_names[0], tree_name)
+    branches = { branch_name: [] for branch_name in branches_to_read }
+    for file_name in file_names:
+        tree = uproot.open(file_name + ":" + tree_name)
+        for branch_name in branches_to_read:
+            branches[branch_name].append(tree[branch_name].array())
+
+    tree_branches = { k: ak.concatenate(v, axis=0) for k, v in branches.items() }
+
+    return tree_branches
+
+
+def efficiencies_merging(file_names, tree_name, weight_branch_name=""):
+    """Return tree branches for efficiencies merging algorithm.
+
+    Efficiencies from the different files are weighted by the sum of the
+    weights read in the weight branch of the file.
+
+    Args:
+        file_names (list[str])
+        tree_name (str)
+        weight_branch_name (str, optional, default=""): "" for no weighting
+
+    Returns:
+        dict[str, awkward.highlevel.Array]:
+           Keys are branch names, values are branch arrays
+    """
+
+    branches_to_read = get_all_branch_names(file_names[0], tree_name)
+    branches = { branch_name: [] for branch_name in branches_to_read }
+    weight_branches = []
+
+    for file_name in file_names:
+        file_ = uproot.open(file_name)
         tree = file_[tree_name]
-        branches_this_file = [ branch.decode("utf-8") for branch in tree.keys() ]
-        branches_to_read[file_name] = [ branch_name for branch_name in branches_this_file if branch_name not in branches_names_added ]
-        branches_names_added = branches_names_added + branches_to_read[file_name]
+        
+        if weight_branch_name != "":
+            weight_branches.append(ak.sum(file_[weight_branch_name].array(), axis=0))
+        else:
+            weight_branches.append(1)
 
-    return branches_to_read
+        for branch_name in branches_to_read:
+            branches[branch_name].append(tree[branch_name].array())
 
-def get_all_branches_name(file_name, tree_name):
-    """ ... """
+    tree_branches = { k: sum([w*b for w, b in zip(weight_branches, v)])/sum(weight_branches) for k, v in branches.items() }
 
-    tree = uproot3.open(file_name)[tree_name]
-    branches_to_read = [ branch.decode("utf-8") for branch in tree.keys() ]
+    return tree_branches
 
-    return branches_to_read
+
+def first_found_merging(file_names, tree_name):
+    """Return tree branches for branches merging algorithm.
+
+    Args:
+        file_names (list[str])
+        tree_name (str)
+
+    Returns:
+        dict[str, awkward.highlevel.Array]:
+           Keys are branch names, values are branch arrays
+    """
+
+    tree_branches = {}
+    for ifile, file_name in enumerate(file_names):
+        file_ = uproot.open(file_name)
+        if tree_name+";1" in file_.keys():
+            tree = file_[tree_name].arrays()
+            tree_branches = { k: tree[k] for k in tree.fields }
+            break
+
+    return tree_branches
 
 
 def write_root_file(trees, merging_algos, output_file_name, debug):
     """Write histograms, stored in a coffea accumulator, to a ROOT file.
 
     Args:
-        trees (dict[dict[awkward.highlevel.Array]])
+        trees (dict[key, dict[key, awkward.highlevel.Array]])
             1st key is tree name
             2nd key is branch name
             Value is the branch (ak array)
@@ -86,76 +217,33 @@ def write_root_file(trees, merging_algos, output_file_name, debug):
     return
 
 
-def main(input_files, tree_names, merging_algos, output_file, debug):
+def main(file_names, tree_names, merging_algos, output_file, debug):
 
     print("Input files:")
-    print(input_files)
+    print(file_names)
 
     trees = {}
     for tree_name, merging_algo in zip(tree_names, merging_algos):
 
         if merging_algo == "branches":
-            branches_to_read = make_branches_to_read(input_files, tree_name)
-            branches = {}
-            for ifile, file_name in enumerate(input_files):
-                tree = uproot.open(file_name + ":" + tree_name)
-                for branch_name in branches_to_read[file_name]:
-                    branches[branch_name] = tree[branch_name].array()
-
-            trees[tree_name] = { k: v for k, v in branches.items() }
+            trees[tree_name] = branches_merging(file_names, tree_name)
 
         elif merging_algo == "events":
-            branches_to_read = get_all_branches_name(input_files[0], tree_name)
-            #branches_to_read = get_all_branches_name(input_files[0], tree_name)[-1100:-1000]
-            #branches_to_read = ["nJet"]
-            branches = {}
-            for ifile, file_name in enumerate(input_files):
-                tree = uproot.open(file_name + ":" + tree_name)
-                for branch_name in branches_to_read:
-                    if ifile == 0:
-                        branches[branch_name] = [tree[branch_name].array()]
-                    else:
-                        branches[branch_name].append(tree[branch_name].array())
- 
-            trees[tree_name] = { k: ak.concatenate(v, axis=0) for k, v in branches.items() }
+            trees[tree_name] = events_merging(file_names, tree_name)
 
         elif merging_algo.startswith("efficiencies"):
-            branches_to_read = get_all_branches_name(input_files[0], tree_name)
+            # merging_algo can be efficiencies or efficiencies:<weight_branch_name>
             weight_branch_name = merging_algo.replace("efficiencies:", "")
-
-            branches = {}
-            weight_branches = {}
-
-            for ifile, file_name in enumerate(input_files):
-                tree = uproot.open(file_name + ":" + tree_name)
-                if ifile == 0:
-                    weight_branches = [ak.sum(uproot.open(file_name + ":" + weight_branch_name).array(), axis=0)]
-                else:
-                    weight_branches.append(ak.sum(uproot.open(file_name + ":" + weight_branch_name).array(), axis=0))
-
-                for branch_name in branches_to_read:
-                    if ifile == 0:
-                        branches[branch_name] = [tree[branch_name].array()]
-                    else:
-                        branches[branch_name].append(tree[branch_name].array())
-
-            trees[tree_name] = { k: sum([w*b for w, b in zip(weight_branches, v)])/sum(weight_branches) for k, v in branches.items() }
-            
+            weight_branch_name = weight_branch_name.replace("efficiencies", "")
+            trees[tree_name] = efficiencies_merging(file_names, tree_name, weight_branch_name)
+           
         elif merging_algo == "firstFound":
-            for ifile, file_name in enumerate(input_files):
-                file_ = uproot.open(file_name)
-                print(file_.keys())
-                if tree_name+";1" in file_.keys():
-                    print(file_[tree_name])
-                    tree = file_[tree_name].arrays()
-                    trees[tree_name] = { k: tree[k] for k in tree.fields }
-                    break
+            trees[tree_name] = first_found_merging(file_names, tree_name)
 
         else:
             print("ERROR: Unknown merging algorithm: %s" %merging_algo)
             sys.exit()
 
-    ## Making output ROOT file
     write_root_file(trees, merging_algos, output_file, debug)
 
 
@@ -178,7 +266,7 @@ if __name__ == "__main__":
         )
     parser.add_argument(
         "-m", "--mergingAlgo",
-        help="Merging algorithm. Choices=['branches', 'events', 'efficiencies:<treeName/genWeightBranchName>', 'firstFound']",
+        help="Merging algorithm. Choices=['branches', 'events', 'efficiencies', 'efficiencies:<treeName/genWeightBranchName>', 'firstFound']",
         required=True,
         )
     parser.add_argument(
