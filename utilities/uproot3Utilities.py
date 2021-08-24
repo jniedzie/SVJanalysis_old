@@ -1,9 +1,10 @@
-import coffea
-import numpy as np
-import awkward as ak
-import uproot3
 import re
 import sys
+
+import numpy as np
+import awkward as ak
+from coffea import processor
+import uproot3
 
 import utilities
 import awkwardArrayUtilities as akutl
@@ -13,11 +14,11 @@ def make_branches(tree, debug=False):
     """Make branches and branches initailiazer to write a tree to a ROOT file.
 
     Args:
-        tree (dict[awkward.Array] or coffea.processor.dict_accumulator)
+        tree (dict[str, awkward.Array] or coffea.processor.dict_accumulator)
         debug (bool)
 
     Returns:
-        tuple: (dict[awkward0.array.jagged.JaggedArray], dict[uproot3.write.objects.TTree.newbranch])
+        tuple (dict[str, awkward0.array.jagged.JaggedArray], dict[str, uproot3.write.objects.TTree.newbranch])
     """
 
     def send_casting_warning(dtype, new_dtype, branch_name):
@@ -42,7 +43,7 @@ def make_branches(tree, debug=False):
             str
         """
 
-        if isinstance(branch, coffea.processor.accumulator.column_accumulator) \
+        if isinstance(branch, processor.accumulator.column_accumulator) \
         or isinstance(branch, np.ndarray):
             dtype = branch.dtype
 
@@ -115,7 +116,7 @@ def make_branches(tree, debug=False):
                 branch content, number of events, data type, awkward type
         """
 
-        if isinstance(branch, coffea.processor.accumulator.column_accumulator):
+        if isinstance(branch, processor.accumulator.column_accumulator):
             branch = branch.value
         branch = akutl.obj_to_ak_array(branch)
         type_ = str(ak.type(branch))
@@ -161,9 +162,9 @@ def make_branches(tree, debug=False):
         """Run some checks on the branches and remove branches failing checks.
 
         Args:
-            branches (dict[awkward0.array.jagged.JaggedArray or numpy.ndarray])
-            branches_init (dict[uproot3.write.objects.TTree.newbranch])
-            branches_size (dict[int])
+            branches (dict[str, awkward0.array.jagged.JaggedArray or numpy.ndarray])
+            branches_init (dict[str, uproot3.write.objects.TTree.newbranch])
+            branches_size (dict[str, int])
 
         Returns:
             None
