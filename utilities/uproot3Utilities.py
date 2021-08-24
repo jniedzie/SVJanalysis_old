@@ -1,32 +1,75 @@
+import re
+import sys
+
 import numpy as np
 import awkward as ak
+from coffea import processor
 import uproot3
 
+import utilities
+import awkwardArrayUtilities as akutl
 
-def obj_to_ak_array(obj):
-    """Convert any input type to an awkward array.
+
+def __send_casting_warning(dtype, new_dtype, branch_name):
+    print("WARNING: Casting branch %s from %s to %s because uproot does not handle %s!" %(branch_name, dtype, new_dtype, dtype))
+    return
+
+
+def __send_max_value_warning(max_value_allowed, branch_name):
+    print("WARNING: Values in branch %s should NOT exceed %d." %(branch_name, max_value_allowed))
+    return
+
+
+def __get_dtype(branch, branch_name="\b"):
+    """Return branch data type.
 
     Args:
-        obj (any type convertible to ak array)
+        branch (coffea.processor.accumulator.column_accumulator, branch, np.ndarray or
+                awkward.highlevel.Array)
+        branch_name (str, optional): banch name for printing out precise warnings
 
     Returns:
-        awkward.highlevel.Array
+        str
     """
 
-    if isinstance(obj, ak.highlevel.Array):
-        ak_array = obj
-    elif isinstance(obj, np.ndarray):
-        ak_array = ak.Array(obj)
-    elif isinstance(obj, np.float32) or isinstance(obj, np.float64) or isinstance(obj, np.int32) or isinstance(obj, np.int64) \
-         or isinstance(obj, float) or isinstance(obj, int):
-        ak_array = ak.Array([obj])
+    if isinstance(branch, processor.accumulator.column_accumulator) \
+    or isinstance(branch, np.ndarray):
+        dtype = branch.dtype
+
+    elif isinstance(branch, ak.highlevel.Array):
+        dtype = ("%s" %ak.type(branch)).split("*")[-1][1:]
+
     else:
-        print("Unknown type %s" %(type(obj)))
+        supported_classes = ["coffea.processor.accumulator.column_accumulator", "numpy.ndarray", "awkward.highlevel.Array"]
+        print("ERROR: Branch %s is from an unsupported class: %s" %(branch_name, type(branch)))
+        print("Supported classes:")
+        for class_ in supported_classes: print("\t%s" %class_)
+        sys.exit()
 
-    return ak_array
+    # uint type is not supported by uproot3
+    # As long as values in the array do not exceed 2147483647 then casting brutaly from uint32 to int32 should be harmless
+    re_search = re.search(r'uint([0-9]+)', dtype)
+    if re_search:
+        nbits = int(re_search.group(1))
+        # int8 cannot be read properly by ROOT yet
+        if nbits == 8:
+            new_dtype = "int16"
+            print_max_value_warning = False
+        # int32, int64, ... are fine
+        else:
+            new_dtype = dtype[1:]
+            print_max_value_warning = True
+
+        __send_casting_warning(dtype, new_dtype, branch_name)
+        if print_max_value_warning:
+            max_value_allowed = 2**(nbits-1) - 1
+            __send_max_value_warning(max_value_allowed, branch_name)
+        dtype = new_dtype
+
+    return dtype
 
 
-def get_size_branch_names(tree):
+def __get_size_branch_names(tree):
     """Find the names of branches storing the size of jagged array branches.
 
     By convention they are called n<CollectionName>.
@@ -49,69 +92,130 @@ def get_size_branch_names(tree):
     return size_branch_names
 
 
+def __make_branch(branch, branch_name=""):
+    """Make tree branch in appropriate format for writing with uproot3.
+
+    Args:
+        branch (coffea.processor.accumulator.column_accumulator,
+                awkward.highlevel.Array, numpy.ndarray, numpy.float, numpy.int)
+        branch_name (str)
+
+    Returns:
+        tuple (awkward0.array.jagged.JaggedArray or numpy.ndarray, int, str, str):
+            branch content, number of events, data type, awkward type
+    """
+
+    if isinstance(branch, processor.accumulator.column_accumulator):
+        branch = branch.value
+    branch = akutl.obj_to_ak_array(branch)
+    type_ = str(ak.type(branch))
+    dtype = __get_dtype(branch, branch_name)
+    size = ak.num(branch, axis=0)
+    branch = ak.to_awkward0(branch)
+
+    return branch, size, dtype, type_
+
+
+def __make_branch_init(branch_name, dtype, size_branch_names):
+    """Make tree branch initializer for uproot3.
+    
+    Args:
+        branch_name (str)
+        dtype (str)
+        size_branch_names (list[str])
+
+    Returns:
+        uproot3.write.objects.TTree.newbranch or None
+    """
+
+    if not branch_name.startswith("n"):
+        nbranch_name = "n"+str(branch_name.split("_")[0])
+        if nbranch_name in size_branch_names:
+            if dtype == "bool":
+                new_dtype = "int16"
+                __send_casting_warning(dtype, new_dtype, branch_name)
+                dtype = new_dtype
+            branch_init = uproot3.newbranch(dtype, size=nbranch_name)
+        else:
+            branch_init = uproot3.newbranch(dtype)
+    else:
+        if branch_name not in size_branch_names:
+            branch_init = uproot3.newbranch(dtype)
+        else:
+            branch_init = None
+
+    return branch_init
+
+
+def __run_branch_checks(branches, branches_init, branches_size):
+    """Run some checks on the branches and remove branches failing checks.
+
+    Args:
+        branches (dict[str, awkward0.array.jagged.JaggedArray or numpy.ndarray])
+        branches_init (dict[str, uproot3.write.objects.TTree.newbranch])
+        branches_size (dict[str, int])
+
+    Returns:
+        None
+    """
+
+    def delete_branch(branch_name, branches, branches_init):
+        branches.pop(branch_name)
+        if branch_name in branches_init.keys():
+            branches_init.pop(branch_name)
+
+        return
+
+    size = utilities.most_common(branches_size.values())
+
+    branches_to_delete = [ branch_name for branch_name, branch_size in branches_size.items() if branch_size != size ]
+    for branch_name in branches_to_delete:
+        print("\nWARNING: Branch %s has size %d while most branches have size %d." %(branch_name, branches_size[branch_name], size))
+        print("         Deleting this branch!")
+        delete_branch(branch_name, branches, branches_init)
+
+    return
+
+
 def make_branches(tree, debug=False):
     """Make branches and branches initailiazer to write a tree to a ROOT file.
 
     Args:
-        tree (dict[awkward.Array] or coffea.processor.dict_accumulator)
+        tree (dict[str, awkward.Array] or coffea.processor.dict_accumulator)
         debug (bool)
 
     Returns:
-        tuple: (dict[awkward0.array.jagged.JaggedArray], dict[uproot3.write.objects.TTree.newbranch])
+        tuple (dict[str, awkward0.array.jagged.JaggedArray], dict[str, uproot3.write.objects.TTree.newbranch])
     """
 
-    ## Running sanity checks
-    tree_type = str(type(tree)).split("'")[1]
-    allowed_tree_types = ["dict", "coffea.processor.accumulator.dict_accumulator"]
-    if tree_type not in allowed_tree_types:
-        print("ERROR: Unknown tree type: %s" %tree_type)
-        print("       Allowed tree types:")
-        for type_ in allowed_tree_types: print("\t%s" %type_)
-        return None, None
+     
 
-    ## Book dict to return
+    # Book dict to return
     branches = {}
     branches_init = {}
 
-    ## Find names of the branches storing the size of jagged array branches
-    size_branch_names = get_size_branch_names(tree)
+    # Book dictionary storing branch length for branch checks
+    branches_size = {}
+
+    # Find names of the branches storing the size of jagged array branches
+    size_branch_names = __get_size_branch_names(tree)
     if debug:
-        print("Size branch names: ", size_branch_names)
+        print("\nSize branch names:")
+        print(size_branch_names)
 
-    ## Making branches and branches_init
-    #  Need to use ak0 and uproot3 because writing tree to ROOT file is not yet implemented in uproot4 (Feb. 2021)
+    # Make branches and branches_init
+    # Need to use ak0 and uproot3 because writing tree to ROOT file is not yet implemented in uproot4 (Feb. 2021)
+    if debug:
+        print("\nFilling branches and branches_init:")
     for branch_name, branch in tree.items():
-
-        if tree_type == "coffea.processor.accumulator.dict_accumulator":
-            branch = branch.value
-            dtype = branch.dtype
-            branch = obj_to_ak_array(branch)
-        elif tree_type == "dict":
-            branch = obj_to_ak_array(branch)
-            dtype = ("%s" %ak.type(branch)).split("*")[-1][1:]
-
+        branches[branch_name], branches_size[branch_name], dtype, type_ = __make_branch(branch, branch_name)
+        branch_init = __make_branch_init(branch_name, dtype, size_branch_names)
+        if branch_init is not None: branches_init[branch_name] = branch_init
         if debug:
-            print("%s: %s" %(branch_name, ak.type(branch)))
+            print("%s:\ttype=%s   dtype=%s" %(branch_name, ak.type(branch), dtype))
 
-
-        # Defining branch
-        branches[branch_name] = ak.to_awkward0(branch)
-
-        # Defining branch_init
-        if not branch_name.startswith("n"):
-            nbranch_name = "n"+str(branch_name.split("_")[0])
-            if nbranch_name in size_branch_names:
-                # Case distinction for type of the jagged-array collections, treated as "object" in the processor
-                # _pFCandsIdx and _jetIdx must be saved as integers ("i4") to use array at once syntax
-                if branch_name.endswith("Idx"):
-                    branches_init[branch_name] = uproot3.newbranch(np.dtype("i4"), size=nbranch_name)
-                else:
-                    branches_init[branch_name] = uproot3.newbranch(np.dtype("f8"), size=nbranch_name)
-            else:
-                branches_init[branch_name] = uproot3.newbranch(dtype)
-        else:
-            if branch_name not in size_branch_names:
-                branches_init[branch_name] = uproot3.newbranch(dtype)
+    # Run checks: e.g. delete branches with bugs, like incorrrect length
+    __run_branch_checks(branches, branches_init, branches_size)
 
     return branches, branches_init
 
@@ -132,5 +236,4 @@ def write_tree_to_root_file(file_, tree_name, branches, branches_init):
     file_[tree_name].extend(branches)
 
     return
-
 
