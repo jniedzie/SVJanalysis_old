@@ -47,7 +47,7 @@ def get_all_branch_names(file_name, tree_name):
     return uproot.open(file_name)[tree_name].keys()
 
 
-def make_branch_names_to_read_per_file(file_names, tree_name):
+def get_unique_branch_names(file_names, tree_name):
     """Return branches names to read in a tree for each file for branches merging algo.
 
     For 2 input files file1.root and file2.root with branches nJet, Jet_pt and
@@ -84,7 +84,7 @@ def branches_merging(file_names, tree_name):
            Keys are branch names, values are branch arrays
     """
 
-    branches_to_read = make_branch_names_to_read_per_file(file_names, tree_name)
+    branches_to_read = get_unique_branch_names(file_names, tree_name)
     branches = {}
     for file_name in file_names:
         tree = uproot.open(file_name + ":" + tree_name)
