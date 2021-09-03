@@ -24,7 +24,7 @@ def __get_dtype(branch, branch_name="\b"):
     """Return branch data type.
 
     Args:
-        branch (coffea.processor.accumulator.column_accumulator, branch, np.ndarray or
+        branch (coffea.processor.accumulator.column_accumulator, np.ndarray or
                 awkward.highlevel.Array)
         branch_name (str, optional): banch name for printing out precise warnings
 
