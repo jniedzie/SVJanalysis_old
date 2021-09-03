@@ -16,30 +16,6 @@ import histogramProcessors as histogram_processors
 
 
 ## TODO: This function should be extracted in utilities
-def make_files_list(files_arg):
-    """Make list of ROOT files to merge.
-
-    Args:
-        files_arg (str): files argument from the argument parser
-            Comma separated ROOT file names e.g. file1.root,file2.root or
-            text file name with a ROOT file name on each line.
-
-    Returns:
-        list[str]
-    """
-
-    # If list of ROOT files in txt file
-    if not files_arg.endswith(".root"):
-        with open (files_arg, "r") as txt_file:
-            root_files = [ x.replace("\n", "") for x in txt_file.readlines() ]
-    # Else we assume coma separated list of ROOT files
-    else:
-        root_files = files_arg.split(",")
-
-    return root_files
-
-
-## TODO: This function should be extracted in utilities
 def print_cutflow(cutflow):
     """Print cut efficiencies for cuts needed for defining some of the variables.
 
@@ -259,7 +235,7 @@ if __name__ == "__main__":
         else:
             efficiency = args.efficiency
 
-    input_files = make_files_list(args.inputFiles)
+    input_files = utl.make_file_list(args.inputFiles)
 
 
     # Make histograms

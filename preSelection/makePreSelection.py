@@ -9,6 +9,7 @@ import argparse
 from collections import OrderedDict
 
 sys.path.append("../utilities/")
+import utilities as utl
 import uproot3Utilities as uproot3utl
 import processorPreSelection
 
@@ -207,19 +208,10 @@ if __name__ == "__main__":
         if not os.path.exists(outputDirectory):
             os.makedirs(outputDirectory)
 
-    ## Get list of input ROOT files
-    # If coma separated list of ROOT files (which ends with the .root of the last ROOT file)
-    if args.inputFiles.endswith(".root"):
-        inputFiles = args.inputFiles.split(",")
-    # Else list of ROOT files in txt file
-    else:
-        with open (args.inputFiles, "r") as txtfile:
-            inputFiles = txtfile.readlines()
-        inputFiles = [ x.replace("\n", "") for x in inputFiles ]
-        inputFiles = [ x for x in inputFiles if x.endswith(".root") ]
+    input_files = utl.make_file_list(args.inputFiles)
 
     ## Make pre-selection
-    main(inputFiles, args.output, args.fileType, args.processor, args.chunksize, args.maxchunks, args.nworkers, args.debug)
+    main(input_files, args.output, args.fileType, args.processor, args.chunksize, args.maxchunks, args.nworkers, args.debug)
 
 
     elapsed = time.time() - tstart

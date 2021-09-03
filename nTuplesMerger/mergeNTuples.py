@@ -7,30 +7,8 @@ import uproot3
 import uproot
 
 sys.path.append("../utilities/")
+import utilities as utl
 import uproot3Utilities as uproot3utl
-
-
-def make_files_list(files_arg):
-    """Make list of ROOT files to merge.
-
-    Args:
-        files_arg (str): files argument from the argument parser
-            Comma separated ROOT file names e.g. file1.root,file2.root or
-            text file name with a ROOT file name on each line.
-
-    Returns:
-        list[str]
-    """
-
-    # If list of ROOT files in txt file
-    if not files_arg.endswith(".root"):
-        with open (files_arg, "r") as txt_file:
-            root_files = [ x.replace("\n", "") for x in txt_file.readlines() ]
-    # Else we assume coma separated list of ROOT files
-    else:
-        root_files = files_arg.split(",")
-
-    return root_files
 
 
 def get_all_branch_names(file_name, tree_name):
@@ -353,7 +331,7 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    main(make_files_list(args.inputfiles), args.trees.split(","), args.mergingAlgo.split(","), args.outputfile, args.debug)
+    main(utl.make_file_list(args.inputfiles), args.trees.split(","), args.mergingAlgo.split(","), args.outputfile, args.debug)
 
 
     elapsed = time.time() - tstart
