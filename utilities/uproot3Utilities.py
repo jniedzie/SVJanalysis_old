@@ -212,7 +212,7 @@ def make_branches(tree, debug=False):
         branch_init = __make_branch_init(branch_name, dtype, size_branch_names)
         if branch_init is not None: branches_init[branch_name] = branch_init
         if debug:
-            print("%s:\ttype=%s   dtype=%s" %(branch_name, ak.type(branch), dtype))
+            print("%s:\ttype=%s   dtype=%s" %(branch_name, type_, dtype))
 
     # Run checks: e.g. delete branches with bugs, like incorrrect length
     __run_branch_checks(branches, branches_init, branches_size)
