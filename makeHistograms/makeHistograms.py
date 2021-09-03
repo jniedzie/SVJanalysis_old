@@ -15,6 +15,31 @@ import utilities as utl
 import histogramProcessors as histogram_processors
 
 
+## TODO: This function should be extracted in utilities
+def make_files_list(files_arg):
+    """Make list of ROOT files to merge.
+
+    Args:
+        files_arg (str): files argument from the argument parser
+            Comma separated ROOT file names e.g. file1.root,file2.root or
+            text file name with a ROOT file name on each line.
+
+    Returns:
+        list[str]
+    """
+
+    # If list of ROOT files in txt file
+    if not files_arg.endswith(".root"):
+        with open (files_arg, "r") as txt_file:
+            root_files = [ x.replace("\n", "") for x in txt_file.readlines() ]
+    # Else we assume coma separated list of ROOT files
+    else:
+        root_files = files_arg.split(",")
+
+    return root_files
+
+
+## TODO: This function should be extracted in utilities
 def print_cutflow(cutflow):
     """Print cut efficiencies for cuts needed for defining some of the variables.
 
@@ -68,7 +93,8 @@ def calculate_efficiency(fileset, efficiency_branch, gen_weight_branch="Events/g
     return efficiency
 
 
-def write_root_file(accumulator, root_file_name, n_processed_events, lumi, xsection, efficiency):
+# TODO: This function should be added to uproot3Utilities
+def write_root_file(accumulator, output_file_name, n_processed_events, lumi, xsection, efficiency):
     """Write histograms, stored in a coffea accumulator, to a ROOT file.
 
     Number of generated events (cutflow), pre-selection cut efficiency (efficiency), luminosity (lumi)
@@ -76,7 +102,7 @@ def write_root_file(accumulator, root_file_name, n_processed_events, lumi, xsect
 
     Args:
         accumulator (dict[str, coffea.hist.Hist])
-        root_file_name (str): Name of the ROOT file to create
+        output_file_name (str): Name of the ROOT file to create
         n_generated_events (float): Number of processed events (sum of gen weights)
         lumi (float): integrated luminosity
         xsection (float): Cross section
@@ -87,10 +113,10 @@ def write_root_file(accumulator, root_file_name, n_processed_events, lumi, xsect
     """
 
     # Need to use uproot3 because it is not implemented yet in uproot4 (Feb. 2021)
-    print("\nWill recreate ROOT file %s\n" %root_file_name)
+    print("\nWill recreate ROOT file %s\n" %output_file_name)
 
     written_hists = []
-    with uproot3.recreate(root_file_name) as f:    # Create/update output file
+    with uproot3.recreate(output_file_name) as f:    # Create/update output file
         for variable, hist in accumulator.items():
             if isinstance(hist, cf.hist.Hist):
                 hist.scale(lumi * xsection * efficiency / n_processed_events )
@@ -104,20 +130,19 @@ def write_root_file(accumulator, root_file_name, n_processed_events, lumi, xsect
     return
 
 
-def main(binning, sample, file_type, processor, chunksize, maxchunks, nworkers, output_directory, lumi, use_efficiencies, efficiency):
+def main(input_files, output_file, binning, processor, chunksize, maxchunks, nworkers, lumi, use_efficiencies, efficiency):
     """Produce a ROOT file filled with histograms.
     
     Produce a ROOT file filled with histograms read from input ROOT files or computed on the fly.
 
     Args:
+        input_files (list)
+        output_file (str)
         binning (dict): Binning information
-        sample (dict): Dict with sample name, cross-section and fileset
-        file_type (str)
         processor (str)
         chunksize (int)
         maxchunks (int)
         nworkers (int)
-        output_directory (str)
         lumi (float)
         use_efficiencies (bool)
         efficiency (str or float): Name of the efficiency branch or efficiency
@@ -127,19 +152,18 @@ def main(binning, sample, file_type, processor, chunksize, maxchunks, nworkers, 
     """
 
     ## Get sample name and cross-section
-    sample_name = sample["name"]
-    xsection = sample["XSection"]
+    xsection = 1.  # TODO: Must be read from Metadata tree
 
 
     ## Fileset
-    fileset = { sample_name: sample["fileset"] }
+    fileset = { "fileset": input_files }
 
 
     ## Make histograms
     output = cf.processor.run_uproot_job(
         fileset,
         treename = "Events",
-        processor_instance = getattr(histogram_processors, processor)(binning, file_type),
+        processor_instance = getattr(histogram_processors, processor)(binning),
         executor = cf.processor.iterative_executor,
         executor_args = {"schema": cf.nanoevents.BaseSchema, "workers": nworkers},
         chunksize = chunksize,
@@ -161,8 +185,7 @@ def main(binning, sample, file_type, processor, chunksize, maxchunks, nworkers, 
 
 
     ## Save histograms to ROOT file
-    root_file_name = output_directory + sample_name + ".root"
-    write_root_file(output, root_file_name, cutflow["noCut"], lumi, xsection, efficiency)
+    write_root_file(output, output_file, cutflow["noCut"], lumi, xsection, efficiency)
 
     return
 
@@ -174,24 +197,17 @@ if __name__ == "__main__":
     ## Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "-i", "--inputFiles",
+        help="Input file",
+        )
+    parser.add_argument(
+        "-o", "--outputFile",
+        help="Output file",
+        )
+    parser.add_argument(
         "-b", "--binning",
         help="json file describing binning of the histograms",
         required=True
-        )
-    parser.add_argument(
-        "-sd", "--samplesDescription",
-        help="json file describing samples location",
-        required=True
-        )
-    parser.add_argument(
-        "-s", "--samples",
-        help="Comma separated list samples to pick up among the samples described in the sample file",
-        required=True
-        )
-    parser.add_argument(
-        "-t", "--fileType",
-        help="Input file type. If not given, then the tyoe will be infered. Choices = PFnano102X, PFnano106",
-        choices=["PFnano102X", "PFnano106X"],
         )
     parser.add_argument(
         "-p", "--processor",
@@ -214,11 +230,6 @@ if __name__ == "__main__":
         default=4, type=int
         )
     parser.add_argument(
-        "-o", "--outputDirectory",
-        help="Path to the directory where to recreate/update ROOT file (default=./)",
-        default="./"
-        )
-    parser.add_argument(
         "-l", "--lumi",
         help="Total luminosity for normalization of the histograms (default=59725 pb-1)",
         default=59725.0,   # 21071.0+38654.0
@@ -232,24 +243,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     
-    ## Create output directory if it does not exist
-    output_directory = args.outputDirectory
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
-
-    ## All samples description
-    samples_description = utl.makeJsonData(args.samplesDescription)
-
     ## Define the binning of the different variables to histogram
     with open(args.binning, 'r') as f:
         binning = json.load(f)["binning"]
 
-    ## Get samples for which to make histograms
-    if not args.samples:
-        samples_names = list(samples_description.keys())
-    else:
-        samples_names = args.samples.split(",")
-
+    ## TODO: Read info from Cutflow and Metadata tree
     ## Efficiencies
     if args.efficiency == "False":
         use_efficiencies = False
@@ -261,33 +259,11 @@ if __name__ == "__main__":
         else:
             efficiency = args.efficiency
 
-    ## Loop over all samples
-    for sample_name in samples_names:
-        sample = samples_description[sample_name]
-        if "name" not in sample.keys():
-            sample["name"] = sample_name
+    input_files = make_files_list(args.inputFiles)
 
-        # Get / infer file type
-        if not args.fileType:
-            # Open 1st file and check some branches to infer the type
-            file_ = uproot3.open(sample["fileset"][0])
-            events = file_["Events"]  # Assuming the events TTree is called Events
-            branches = [ branch.decode("utf-8") for branch in events.keys() ]
 
-            if "JetPFCandsAK4_jetIdx" in branches:
-                file_type = "PFnano106X"
-            elif "JetPFCands_jetIdx" in branches:
-                file_type = "PFnano102X"
-            else:
-                print("ERROR: file type cannot be inferred!")
-                sys.exit()
-            print("Inferred file type: %s" %file_type)
-
-        else:
-            file_type = args.fileType
-
-        # Make histograms
-        main(binning, sample, file_type, args.processor, args.chunksize, args.maxchunks, args.nworkers, output_directory, float(args.lumi), use_efficiencies, efficiency)
+    # Make histograms
+    main(input_files, args.outputFile, binning, args.processor, args.chunksize, args.maxchunks, args.nworkers, float(args.lumi), use_efficiencies, efficiency)
 
 
     elapsed = time.time() - tstart
