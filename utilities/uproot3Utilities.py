@@ -10,8 +10,10 @@ import utilities
 import awkwardArrayUtilities as akutl
 
 
-def __send_casting_warning(dtype, new_dtype, branch_name):
-    print("WARNING: Casting branch %s from %s to %s because uproot does not handle %s!" %(branch_name, dtype, new_dtype, dtype))
+def __send_casting_warning(dtype, new_dtype, branch_name, jagged=False):
+    warning = "WARNING: Casting branch %s from %s to %s because uproot does not handle %s!" %(branch_name, dtype, new_dtype, dtype)
+    if jagged: warning += "\b jagged arrays!"
+    print(warning)
     return
 
 
@@ -32,13 +34,17 @@ def __get_dtype(branch, branch_name="\b"):
         str
     """
 
+    nbits_max = 32
+
     if isinstance(branch, processor.accumulator.column_accumulator) \
     or isinstance(branch, np.ndarray):
         dtype = branch.dtype
+        jagged_branch = False
 
     elif isinstance(branch, ak.highlevel.Array):
         type_ = str(ak.type(branch))
         dtype = type_.split("*")[-1][1:]
+        jagged_branch = True if "var" in type_ else False
      
     else:
         supported_classes = ["coffea.processor.accumulator.column_accumulator", "numpy.ndarray", "awkward.highlevel.Array"]
@@ -73,8 +79,18 @@ def __get_dtype(branch, branch_name="\b"):
     # uproot3 and uproot do not handle jagged branch with type float64 or int64
     # Casting to float32 and int32
     # More info at https://github.com/scikit-hep/uproot3/issues/506
+    if jagged_branch:
+        re_search = re.search(r'(int|float)([0-9]+)', new_dtype)
+        if re_search and int(re_search.group(2)) > nbits_max:
+            send_casting_warning = True
+            type_name = re_search.group(1)
+            new_dtype = type_name + str(nbits_max)
+            if type_name == "int":
+                send_max_value_warning = True
+                max_value_allowed = 2**31 - 1
+
     if send_casting_warning:
-        __send_casting_warning(dtype, new_dtype, branch_name)
+        __send_casting_warning(dtype, new_dtype, branch_name, jagged=True)
 
     if send_max_value_warning:
         __send_max_value_warning(max_value_allowed, branch_name)
