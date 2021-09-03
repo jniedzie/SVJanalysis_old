@@ -120,6 +120,69 @@ def events_merging(file_names, tree_name):
     return tree_branches
 
 
+def sum_merging(file_names, tree_name):
+    """Return tree branches for sum merging algorithm.
+
+    Args:
+        file_names (list[str])
+        tree_name (str)
+
+    Returns:
+        dict[str, awkward.highlevel.Array]:
+           Keys are branch names, values are branch arrays
+    """
+
+    branches_to_read = get_all_branch_names(file_names[0], tree_name)
+    branches = { branch_name: 0. for branch_name in branches_to_read }
+    for file_name in file_names:
+        tree = uproot.open(file_name + ":" + tree_name)
+        for branch_name in branches_to_read:
+            branches[branch_name] += tree[branch_name].array()[0]
+
+    tree_branches = { k: ak.Array([v]) for k, v in branches.items() }
+
+    return tree_branches
+
+
+def metadata_merging(file_names, tree_name, efficiency_branch_name="TotalCutEfficiency",
+    original_format_branch_name="OriginalFormat", cross_section_branch_name="GenCrossSection",
+    gen_weight_branch_name="Cutflow/AllCuts"):
+    """Return tree branches for metadata merging algorithm.
+
+    Args:
+        file_names (list[str])
+        tree_name (str)
+
+    Returns:
+        dict[str, awkward.highlevel.Array]:
+           Keys are branch names, values are branch arrays
+    """
+
+    tree_branches = {}
+
+    # Get cross section and original format from first file
+    file_name = file_names[0]
+    with uproot.open(file_name + ":" + tree_name) as tree:
+        tree_branches[cross_section_branch_name] = tree[cross_section_branch_name].array()
+        tree_branches[original_format_branch_name] = tree[original_format_branch_name].array()
+
+    # Compute total cut efficiency for the ensemble of files
+    sum_gen_weights = []
+    efficiencies = []
+    for file_name in file_names:
+        with uproot.open(file_name) as file_:
+            efficiencies.append(file_[tree_name][efficiency_branch_name].array()[0])
+            if gen_weight_branch_name != "":
+                sum_gen_weights.append(ak.sum(file_[gen_weight_branch_name].array(), axis=0))
+            else:
+                sum_gen_weights.append(1)
+
+    sum_gen_weights_no_cut = [sum_gen_weight/efficiency for sum_gen_weight, efficiency in zip(sum_gen_weights, efficiencies)]
+    tree_branches[efficiency_branch_name] = ak.Array([sum(sum_gen_weights) / sum(sum_gen_weights_no_cut)])
+
+    return tree_branches
+
+
 def efficiencies_merging(file_names, tree_name, weight_branch_name=""):
     """Return tree branches for efficiencies merging algorithm.
 
@@ -199,6 +262,7 @@ def write_root_file(trees, merging_algos, output_file_name, debug):
     # Need to use compression=None because there is a bug with EFPs when the file is compressed:
     # More info at https://github.com/scikit-hep/uproot3/issues/506
     with uproot3.recreate(output_file_name, compression=None) as root_file:
+        print("\nWriting down output ROOT file %s" %output_file_name)
         for (tree_name, tree), merging_algo in zip(trees.items(), merging_algos):
 
             # Making branches to write to tree
@@ -212,7 +276,7 @@ def write_root_file(trees, merging_algos, output_file_name, debug):
 
             # Save branches to ROOT file
             uproot3utl.write_tree_to_root_file(root_file, tree_name, branches, branches_init)
-            print("\nTTree %s saved to output file %s" %(tree_name, output_file_name))
+            print("TTree %s saved to output file" %tree_name)
 
     return
 
@@ -230,6 +294,12 @@ def main(file_names, tree_names, merging_algos, output_file, debug):
 
         elif merging_algo == "events":
             trees[tree_name] = events_merging(file_names, tree_name)
+
+        elif merging_algo == "sum":
+            trees[tree_name] = sum_merging(file_names, tree_name)
+
+        elif merging_algo == "metadata":
+            trees[tree_name] = metadata_merging(file_names, tree_name)
 
         elif merging_algo.startswith("efficiencies"):
             # merging_algo can be efficiencies or efficiencies:<weight_branch_name>
