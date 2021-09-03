@@ -37,8 +37,9 @@ def __get_dtype(branch, branch_name="\b"):
         dtype = branch.dtype
 
     elif isinstance(branch, ak.highlevel.Array):
-        dtype = ("%s" %ak.type(branch)).split("*")[-1][1:]
-
+        type_ = str(ak.type(branch))
+        dtype = type_.split("*")[-1][1:]
+     
     else:
         supported_classes = ["coffea.processor.accumulator.column_accumulator", "numpy.ndarray", "awkward.highlevel.Array"]
         print("ERROR: Branch %s is from an unsupported class: %s" %(branch_name, type(branch)))
@@ -46,27 +47,39 @@ def __get_dtype(branch, branch_name="\b"):
         for class_ in supported_classes: print("\t%s" %class_)
         sys.exit()
 
+    new_dtype = dtype
+
+    # If type cannot be inferred, the type will be e.g. of the form ?int32
+    if new_dtype.startswith("?"):
+        new_dtype = dtype[1:]
+
     # uint type is not supported by uproot3
     # As long as values in the array do not exceed 2147483647 then casting brutaly from uint32 to int32 should be harmless
-    re_search = re.search(r'uint([0-9]+)', dtype)
+    send_casting_warning = False
+    send_max_value_warning = False
+    re_search = re.search(r'uint([0-9]+)', new_dtype)
     if re_search:
+        send_casting_warning = True
         nbits = int(re_search.group(1))
         # int8 cannot be read properly by ROOT yet
         if nbits == 8:
             new_dtype = "int16"
-            print_max_value_warning = False
-        # int32, int64, ... are fine
+        # int16, int32 are fine
         else:
-            new_dtype = dtype[1:]
-            print_max_value_warning = True
-
-        __send_casting_warning(dtype, new_dtype, branch_name)
-        if print_max_value_warning:
+            send_max_value_warning = True
+            new_dtype = new_dtype[1:]
             max_value_allowed = 2**(nbits-1) - 1
-            __send_max_value_warning(max_value_allowed, branch_name)
-        dtype = new_dtype
 
-    return dtype
+    # uproot3 and uproot do not handle jagged branch with type float64 or int64
+    # Casting to float32 and int32
+    # More info at https://github.com/scikit-hep/uproot3/issues/506
+    if send_casting_warning:
+        __send_casting_warning(dtype, new_dtype, branch_name)
+
+    if send_max_value_warning:
+        __send_max_value_warning(max_value_allowed, branch_name)
+
+    return new_dtype
 
 
 def __get_size_branch_names(tree):
