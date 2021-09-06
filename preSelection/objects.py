@@ -222,17 +222,23 @@ class Jets():
             # Define here jets and jet_variables
             pass
 
+        self.filter_ = None
         self.jet = make_ak_array_collection(jets, jet_variables)
         self.variables = self.jet.fields
 
 
         ## Definition of good jets
-        # Can define complicated cuts here
+        # No cut
         if cut is None:
-            if jet_algo_name.lower() == "ak4":
-                pass
-            elif jet_algo_name.lower() == "ak8":
-                pass
+            pass
+
+        # Can define complicated cuts here
+        #elif cut = ... 
+        #    if jet_algo_name.lower() == "ak4":
+        #        pass
+        #    elif jet_algo_name.lower() == "ak8":
+        #        pass
+
         # Or use the cut argument
         else:
             self.filter_ = eval(cut.replace("jet", "self.jet"))
@@ -412,16 +418,21 @@ class JetPfCandsMatchingTable():
                 table = getattr(events, jet_collection_name + "PFCands")
                 cand_idx_name = "pFCandsIdx"
 
-            # Indices of the good jets
-            good_jet_indices = true_indices(good_jets.filter_)
-            # Boolean ak array to select only PF candidates in good fat jets
-            self.filter_ = is_in(table.jetIdx, good_jet_indices)
-            # Get jet indices of the PF candidates in good fat jets
-            pf_cands_jet_idx = table.jetIdx[self.filter_]
-            # Some jets may have been removed, update the indices to good jets
-            self.jetIdx = make_new_jet_indices(good_jets.filter_, pf_cands_jet_idx)
-            # Get PF candidates indices in good fat jets
-            self.pFCandsIdx = getattr(table, cand_idx_name)[self.filter_]
+            if good_jets.filter_ is not None:
+                # Indices of the good jets
+                good_jet_indices = true_indices(good_jets.filter_)
+                # Boolean ak array to select only PF candidates in good fat jets
+                self.filter_ = is_in(table.jetIdx, good_jet_indices)
+                # Get jet indices of the PF candidates in good fat jets
+                pf_cands_jet_idx = table.jetIdx[self.filter_]
+                # Some jets may have been removed, update the indices to good jets
+                self.jetIdx = make_new_jet_indices(good_jets.filter_, pf_cands_jet_idx)
+                # Get PF candidates indices in good fat jets
+                self.pFCandsIdx = getattr(table, cand_idx_name)[self.filter_]
+            else:
+                self.jetIdx = table.jetIdx
+                self.pFCandsIdx = getattr(table, cand_idx_name)
+
             # Number of PF candidates
             self.n = ak.count(self.jetIdx, axis=1)
 
