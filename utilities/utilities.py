@@ -3,6 +3,32 @@ import re
 import json
 
 
+def make_file_list(files_arg):
+    """Make list of ROOT files to merge.
+
+    Args:
+        files_arg (str): files argument from the argument parser.
+            Comma separated ROOT file names e.g. file1.root,file2.root or
+            text file name with a ROOT file name on each line.
+
+    Returns:
+        list[str]
+    """
+
+    # If list of ROOT files in txt file
+    if not files_arg.endswith(".root"):
+        with open (files_arg, "r") as txt_file:
+            root_files = [ x.replace("\n", "") for x in txt_file.readlines() ]
+    # Else we assume coma separated list of ROOT files
+    else:
+        root_files = files_arg.split(",")
+
+    # In case there were empty lines in txt file or extra comas, remove empty strings
+    root_files = [ x for x in root_files if x != "" ]
+
+    return root_files
+
+
 def list2str(list_, str_for_concatenation=""):
     """Concatenate elements of a list into an str.
 
