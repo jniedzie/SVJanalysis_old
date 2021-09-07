@@ -163,6 +163,7 @@ class BranchesProducer(processor.ProcessorABC):
         for jet_type in self.jet_types:
 
             jet_collection = nameutl.jet_algo_name_to_jet_collection_name(jet_type)
+            jet_radius = phutl.jet_name_to_jet_radius(jet_type)
 
             jets = get_jets(events, jet_type)
             jet_pf_cands = get_pf_cands(events, jet_type)
@@ -170,8 +171,11 @@ class BranchesProducer(processor.ProcessorABC):
             sum_pfcands_pt = jetvars.calculate_sum_pfcands_pt(jet_pf_cands, jagged=False)
 
             output["n" + jet_collection] = cfutl.accumulate(njets)
-            output[jet_collection + "_ptD"] = cfutl.accumulate(jetvars.calculate_ptD(jet_pf_cands))
-            output[jet_collection + "_girth"] = cfutl.accumulate(jetvars.calculate_girth(jet_pf_cands, jets, njets=njets))
+            output[jet_collection + "_ptD"] = cfutl.accumulate(jetvars.calculate_ptD(jet_pf_cands, sum_pfcands_pt=sum_pfcands_pt))
+            output[jet_collection + "_LHA"] = cfutl.accumulate(jetvars.calculate_lha(jet_pf_cands, jets, jet_radius, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
+            output[jet_collection + "_girth"] = cfutl.accumulate(jetvars.calculate_girth(jet_pf_cands, jets, jet_radius, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
+            output[jet_collection + "_thrust"] = cfutl.accumulate(jetvars.calculate_thrust(jet_pf_cands, jets, jet_radius, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
+            output[jet_collection + "_multiplicity"] = cfutl.accumulate(jetvars.calculate_multiplicity(jet_pf_cands))
             axis_major, axis_minor, axis_avg = jetvars.calculate_axes(jet_pf_cands, jets, njets=njets)
             output[jet_collection + "_axisMajor"] = cfutl.accumulate(axis_major)
             output[jet_collection + "_axisMinor"] = cfutl.accumulate(axis_minor)
