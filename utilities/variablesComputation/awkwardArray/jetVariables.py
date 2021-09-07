@@ -47,56 +47,29 @@ def calculate_sum_pfcands_pt_1_jet(jet_idx, pf_cands):
     return ak.sum(jet_pf_cands.pt, axis=1)
 
 
-def calculate_ptD_1_jet(jet_idx, pf_cands, nan_value=-1):
-    """Calculate ptD for all jets of a given index for all events.
+def calculate_generalized_angularity_1_jet(jet_idx, pf_cands, jets, njets, jet_radius, beta, kappa, sum_pfcands_pt=None, nan_value=-1):
+    """Calculate generalized angularity for all jets of a given index for all events.
 
     Args:
         jet_idx (int)
-        pf_cands (awkward.Array):
-            Ak array where axis 0 is the event axis, axis 1 is the PF
-            candidates axis with fields pt and jetIdx.
-        nan_value (float, optional, default=-1):
-            Value to use when the event has less than jet_idx+1 jet(s).
-
-    Returns:
-        awkward.Array
-
-    Examples:
-        >>> pf_cands_idx = ak.Array([[0, 0, 1, 1, 1], [0, 0, 1, 1, 2, 2]])
-        >>> pf_cands_pt = ak.Array([[280, 150, 150, 130, 70], [500, 300, 400, 300, 150, 100]])
-        >>> pf_cands = ak.zip({"jetIdx": pf_cands_idx, "pt": pf_cands_pt})
-        >>> jet_idx = 2
-        >>> calculate_ptD_1_jet(jet_idx, pf_cands)
-        [<Array [0.601, 0.714] type='2 * float64'>]
-        >>> jet_idx = 2
-        >>> calculate_ptD_1_jet(jet_idx, pf_cands)
-        [<Array [-1, 0.721] type='2 * float64'>]
-    """
-
-    pf_cands_pt = pf_cands[(pf_cands.jetIdx == jet_idx)].pt
-
-    numerator = np.sqrt(ak.sum(pf_cands_pt**2, axis=1))
-    denominator = ak.sum(pf_cands_pt, axis=1)
-    ptD = akutl.divide_ak_arrays(numerator, denominator, division_by_zero_value=nan_value)
-
-    return ptD
-
-
-def calculate_girth_1_jet(jet_idx, pf_cands, jets, njets, nan_value=-1):
-    """Calculate girth for all jets of a given index for all events.
-
-    Args:
-        jet_idx (int)
-        pf_cands (awkward.Array):
+        pf_cands (awkward.Array or None):
             Ak array where axis 0 is the event axis, axis 1 is the PF
             candidates axis with fields pt, eta, phi, mass and jetIdx,
             and with name PtEtaPhiMLorentzVector.
-        jets (awkward.Array):
+            Can be None if kappa=0.
+        jets (awkward.Array or None):
             Ak array where axis 0 is the event axis, axis 1 is the jet axis
             with fields pt, eta, phi and mass and with name
             PtEtaPhiMLorentzVector.
+            Can be None if beta=0.
         njets (awkward.Array):
             Ak array with one axis with number of jets in each event.
+        beta (float): Angular distance exponent.
+        kappa (float): Transverse momentum fraction exponent.
+        sum_pfcands_pt (awkward.Array, optional, default=None):
+            Ak array where axis 0 is the event axis, axis 1 is the jet axis.
+            Sum of jet constituents pT for all jets in all events.
+            If None, will be computed from pf_cands.
         nan_value (float, optional, default=-1):
             Value to use when the event has less than jet_idx+1 jet(s).
 
@@ -117,24 +90,49 @@ def calculate_girth_1_jet(jet_idx, pf_cands, jets, njets, nan_value=-1):
         >>> jets = ak.zip({"pt": jets_pt, "eta": jets_eta, "phi": jets_phi, "mass": jets_mass})
         >>> njets = ak.Array([2, 3])
         >>> jet_idx = 1
-        >>> calculate_girth_1_jet(jet_idx, pf_cands, jets, njets)
+        >>> # Girth with jet radius R=1
+        >>> calculate_generalized_angularity_1_jet(jet_idx, pf_cands, jets, njets, 1, 1, 1)
         [<Array [0.158, 0.248] type='2 * float64'>]
+        >>> # ptD squared with more jets than jet_idx+1
+        >>> calculate_generalized_anglarity_1_jet(jet_idx, pf_cands, None, None, 1, 0, 2)
+        [<Array [0.601, 0.714] type='2 * float64'>]
+        >>> # ptD squared with fewer jets than jet_idx+1, note the -1 
+        >>> jet_idx = 2
+        >>> calculate_generalized_anglarity_1_jet(jet_idx, pf_cands)
+        [<Array [-1, 0.721] type='2 * float64'>]
     """
 
-
     jet_pf_cands = pf_cands[(pf_cands.jetIdx == jet_idx)]
-    jet = ak.mask(jets, njets > jet_idx)[:, jet_idx]
 
-    # The following line introduces None in place of events with no jet with index jet_idx
-    jet_broadcasted = akutl.broadcast(jet, jet_pf_cands)[0]
-    delta_r = vecutl.delta_r(jet_pf_cands, jet_broadcasted)
+    if beta == 0 and kappa == 0:
+        generalized_angularity = ak.num(jet_pf_cands.pt, axis=1)
 
-    numerator = ak.sum(jet_pf_cands.pt * delta_r, axis=1)
-    denominator = ak.sum(jet_pf_cands.pt, axis=1)
-    girth = akutl.divide_ak_arrays(numerator, denominator, division_by_zero_value=nan_value)
-    girth = ak.fill_none(girth, nan_value)
+    else:
+        if beta == 0:
+            angular_term = 1.
+        else:
+            # The following line introduces None in place of events with no jet with index jet_idx
+            jet = ak.mask(jets, njets > jet_idx)[:, jet_idx]
+            jet_broadcasted = akutl.broadcast(jet, jet_pf_cands)[0]
+            delta_r = vecutl.delta_r(jet_pf_cands, jet_broadcasted)
+            angular_term = delta_r**beta
+    
+        if kappa == 0:
+            sum_pfcands_pt = 1.
+            momentum_term = 1.
+        else:
+            if sum_pfcands_pt is not None:
+                sum_pfcands_pt = sum_pfcands_pt[:, jet_idx]
+            else:
+                sum_pfcands_pt = calculate_sum_pfcands_pt_1_jet(jet_idx, pf_cands)
+            momentum_term = jet_pf_cands.pt**kappa
 
-    return girth
+        numerator = ak.sum(momentum_term * angular_term, axis=1)
+        denominator = sum_pfcands_pt**kappa * jet_radius**beta
+        generalized_angularity = akutl.divide_ak_arrays(numerator, denominator, division_by_zero_value=nan_value)
+        generalized_angularity = ak.fill_none(generalized_angularity, nan_value)
+    
+    return generalized_angularity
 
 
 def calculate_axes_1_jet(jet_idx, pf_cands, jets, njets, nan_value=-1):
@@ -473,6 +471,8 @@ def calculate_jet_variable(variable, pf_cands, jets, njets=None, sum_pfcands_pt=
     for jet_idx in range(max_idx+1):
         if variable == "sum_pfcands_pt":
             ak_arrays = calculate_sum_pfcands_pt_1_jet(jet_idx, pf_cands)
+        elif variable == "generalized_angularity":
+            ak_arrays = calculate_generalized_angularity_1_jet(jet_idx, pf_cands, jets, njets, params["jet_radius"], params["beta"], params["kappa"], sum_pfcands_pt=sum_pfcands_pt, nan_value=nan_value)
         elif variable == "ptD":
             ak_arrays = calculate_ptD_1_jet(jet_idx, pf_cands, nan_value=nan_value)
         elif variable == "girth":
@@ -531,10 +531,21 @@ def calculate_sum_pfcands_pt(pf_cands, jagged=True):
     return calculate_jet_variable("sum_pfcands_pt", pf_cands, None, None, nan_value=0., jagged=jagged)
 
 
-def calculate_ptD(pf_cands, jagged=True):
+def calculate_generalized_angularity(pf_cands, jets, jet_radius, beta, kappa, njets=None, sum_pfcands_pt=None, nan_value=-1, jagged=True):
+    """Return generalized angularity with parameters beta and kappa for each jet for all events.
+
+    See docstring of calculate_generalized_angularity_1_jet.
+    """
+
+    return calculate_jet_variable("generalized_angularity", pf_cands, jets, njets=njets, \
+                                 sum_pfcands_pt=sum_pfcands_pt, jagged=jagged, nan_value=nan_value, \
+                                 params={"jet_radius": jet_radius, "beta": beta, "kappa": kappa})
+
+
+def calculate_ptD(pf_cands, sum_pfcands_pt=None, jagged=True):
     """Return ptD for each jet for all events.
 
-    See doctring of calculate_ptD_1_jet.
+    See docstring of calculate_generalized_angularity_1_jet.
 
     Args:
         pf_cands (awkward.Array):
@@ -552,16 +563,45 @@ def calculate_ptD(pf_cands, jagged=True):
         [[0.739, 0.601], [0.729, 0.714, 0.721]]
     """
 
-    return calculate_jet_variable("ptD", pf_cands, None, None, jagged=jagged)
+    ptD2 = calculate_generalized_angularity(pf_cands, None, 1, 0, 2, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
+    ptD = np.sqrt(ptD2)
+    return ptD
 
 
-def calculate_girth(pf_cands, jets, njets=None, jagged=True):
-    """Return girth for each jet for all events.
+def calculate_lha(pf_cands, jets, jet_radius, njets=None, sum_pfcands_pt=None, jagged=True):
+    """Return Les Houches Angularity for each jet for all events.
     
-    See doctring of calculate_girth_1_jet.
+    See docstring of calculate_generalized_angularity_1_jet.
     """
 
-    return calculate_jet_variable("girth", pf_cands, jets, njets=njets, jagged=jagged)
+    return calculate_generalized_angularity(pf_cands, jets, jet_radius, 0.5, 1, njets=njets, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
+
+
+def calculate_girth(pf_cands, jets, jet_radius, njets=None, sum_pfcands_pt=None, jagged=True):
+    """Return girth for each jet for all events.
+    
+    See docstring of calculate_generalized_angularity_1_jet.
+    """
+
+    return calculate_generalized_angularity(pf_cands, jets, jet_radius, 1, 1, njets=njets, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
+
+
+def calculate_thrust(pf_cands, jets, jet_radius, njets=None, sum_pfcands_pt=None, jagged=True):
+    """Return thrust for each jet for all events.
+    
+    See docstring of calculate_generalized_angularity_1_jet.
+    """
+
+    return calculate_generalized_angularity(pf_cands, jets, jet_radius, 2, 1, njets=njets, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
+
+
+def calculate_multiplicity(pf_cands, nan_value=0, jagged=True):
+    """Return multiplicity for each jet for all events.
+    
+    See docstring of calculate_generalized_angularity_1_jet.
+    """
+
+    return calculate_generalized_angularity(pf_cands, None, 1., 0, 0, nan_value=0, jagged=jagged)
 
 
 def calculate_axes(pf_cands, jets, njets=None, jagged=True):
