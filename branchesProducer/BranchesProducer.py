@@ -83,17 +83,12 @@ def get_pf_cands(events, jet_type):
             PtEtaPhiMLorentzVector.
     """
 
-    # For now a quick and dirty hack to switch between 102X and 106X
-    # Will be obsolete when using only 106X
-
-    ## For 102X
-    if jet_type == "AK8":
-        jet_pf_cands = events.FatJetPFCands
-    else:
-        jet_pf_cands = events.JetPFCands
+    jet_collection_name = nameutl.jet_algo_name_to_jet_collection_name(jet_type)
+    jet_pf_cands_idx_info = eval("events." + jet_collection_name + "PFCands")
+    jet_pf_cands = events.PFCands[jet_pf_cands_idx_info.pFCandsIdx]
     pf_cands = ak.zip(
         {
-            "jetIdx": jet_pf_cands.jetIdx,
+            "jetIdx": jet_pf_cands_idx_info.jetIdx,
             "pt"    : jet_pf_cands.pt,
             "mass"  : jet_pf_cands.mass,
             "eta"   : jet_pf_cands.eta,
@@ -103,22 +98,6 @@ def get_pf_cands(events, jet_type):
         },
         with_name="PtEtaPhiMLorentzVector",
     )
-    
-    ## For 106X
-    #jet_pf_cands_idx_info = eval("events.JetPFCands"+jet_type)
-    #jet_pf_cands = events.JetPFCands[jet_pf_cands_idx_info.candIdx]
-    #pf_cands = ak.zip(
-    #    {
-    #        "jetIdx": jet_pf_cands_idx_info.jetIdx,
-    #        "pt"    : jet_pf_cands.pt,
-    #        "mass"  : jet_pf_cands.mass,
-    #        "eta"   : jet_pf_cands.eta,
-    #        "phi"   : jet_pf_cands.phi,
-    #        "charge": jet_pf_cands.charge,
-    #        "pdgId" : jet_pf_cands.pdgId,
-    #    },
-    #    with_name="PtEtaPhiMLorentzVector",
-    #)
 
     pf_cands = ak.with_field(pf_cands, vecutl.rapidity(pf_cands), where="rapidity")
 
