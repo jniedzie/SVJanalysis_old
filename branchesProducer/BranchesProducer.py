@@ -52,8 +52,8 @@ def get_jets(events, jet_type):
             that can be used as a coffea PtEtaPhiMLorentzVector.
     """
 
-    jet_collection = nameutl.jet_algo_name_to_jet_collection_name(jet_type)
-    jet_branch = eval("events." + jet_collection)
+    jet_collection_name = nameutl.jet_algo_name_to_jet_collection_name(jet_type)
+    jet_branch = eval("events." + jet_collection_name)
 
     jets = ak.zip(
         {
