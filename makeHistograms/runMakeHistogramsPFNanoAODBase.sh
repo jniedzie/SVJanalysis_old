@@ -1,43 +1,27 @@
 #!/bin/bash
 
+
+make_file_arg() {
+
+    str=""
+    for file in ${@:1:($#-1)}; do
+        str=${str}${file},
+    done
+    str=${str}${@:$#}
+    echo ${str}
+}
+
+
 binning=binning.json
-samples_description=samples_skim1.json
 processor=HistogramPFNanoAODBase
 
+model=t-channel_mMed-3000_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8
 
-## For tchannel
+input_file=/pnfs/psi.ch/cms/trivcat//store/user/fleble/SVJ/t_channel/samples/2018/PFNANOAODSKIM/step6_PFNANOAODSKIM_${model}_n-1000_part-1to100.root
+# Example using file name expansion
+# Not the best t-channel because files are small, better using a merged file because individual files are so small
+#input_file=$(make_file_arg /pnfs/psi.ch/cms/trivcat//store/user/fleble/SVJ/t_channel/samples/2018/PFNANOAODSKIM/step6_PFNANOAODSKIM_${model}_n-1000_part-[0-9]*.root)
 
-output_directory=/work/fleble/t_channel_histograms/skim1/
-samples=(
-    tchannel_mMed-1000_mDark-20_rinv-0.3_alpha-peak
-    tchannel_mMed-3000_mDark-20_rinv-0.3_alpha-peak
-    tchannel_mMed-4000_mDark-20_rinv-0.3_alpha-peak
-    tchannel_mMed-6000_mDark-20_rinv-0.3_alpha-peak
-)
+output_file=/pnfs/psi.ch/cms/trivcat//store/user/fleble/SVJ/t_channel/histograms/2018/PFNANOAODSKIM/HISTOGRAMS_${model}.root
 
-
-for sample in ${samples[@]}; do
-  python makeHistograms.py --binning ${binning} --samplesDescription ${samples_description} --samples ${sample} --processor ${processor} --outputDirectory ${output_directory} -e Efficiencies/totalEfficiency
-done
-
-
-## For QCD
-
-output_directory=/work/fleble/QCD_histograms/skim1/
-samples=(
-    QCD_170_300
-    QCD_300_470
-    QCD_470_600
-    QCD_600_800
-    QCD_800_1000
-    QCD_1000_1400
-    QCD_1400_1800
-    QCD_1800_2400
-    QCD_2400_3200
-    QCD_3200_Inf
-)
-
-
-for sample in ${samples[@]}; do
-  python makeHistograms.py --binning ${binning} --samplesDescription ${samples_description} --samples ${sample} --processor ${processor} --outputDirectory ${output_directory} -e Cuts/Efficiency
-done
+python makeHistograms.py -i ${input_file} -o ${output_file} --binning ${binning} --processor ${processor}
