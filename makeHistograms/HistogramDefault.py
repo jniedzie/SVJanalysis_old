@@ -104,7 +104,8 @@ class HistogramDefault(processor.ProcessorABC):
                 var = variable_template
                 for k, v in params_dict.items():
                     var = var.replace("{"+k+"}", v)
-                variables.append(var)
+                if var not in variables:
+                    variables.append(var)
 
         return variables
 
