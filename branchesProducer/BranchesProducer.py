@@ -187,37 +187,36 @@ class BranchesProducer(processor.ProcessorABC):
             output["RazorMRT_" + jet_collection] = cfutl.accumulate(mrt)
             output["RazorR_" + jet_collection] = cfutl.accumulate(evtvars.calculate_razor_R(mr, mrt))
 
-            if jet_type == "AK8":
 
-                output[jet_collection + "_chHEF"] = cfutl.accumulate(jetvars.calculate_chHEF(jet_pf_cands, jets, njets=njets))
-                output[jet_collection + "_neHEF"] = cfutl.accumulate(jetvars.calculate_neHEF(jet_pf_cands, jets, njets=njets))
+            output[jet_collection + "_chHEF"] = cfutl.accumulate(jetvars.calculate_chHEF(jet_pf_cands, jets, njets=njets))
+            output[jet_collection + "_neHEF"] = cfutl.accumulate(jetvars.calculate_neHEF(jet_pf_cands, jets, njets=njets))
 
-                beta = 1
-                e2b1 = jetvars.calculate_ecf_e2(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt)
-                #e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
-                v1e3b1, v2e3b1, e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=True)
-                #e4b1 = jetvars.calculate_ecfs_e4(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
-                #v1e4b1, v2e4b1, v3e4b1, v4e4b1, v5e4b1, e4b1 = jetvars.calculate_ecfs_e4(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=True)
-                output[jet_collection + "_e2b1"] = cfutl.accumulate(e2b1)
-                output[jet_collection + "_v1e3b1"] = cfutl.accumulate(v1e3b1)
-                output[jet_collection + "_v2e3b1"] = cfutl.accumulate(v2e3b1)
-                output[jet_collection + "_e3b1"] = cfutl.accumulate(e3b1)
-                #output[jet_collection + "_v1e4b1"] = cfutl.accumulate(v1e4b1)
-                #output[jet_collection + "_v2e4b1"] = cfutl.accumulate(v2e4b1)
-                #output[jet_collection + "_v3e4b1"] = cfutl.accumulate(v3e4b1)
-                #output[jet_collection + "_v4e4b1"] = cfutl.accumulate(v4e4b1)
-                #output[jet_collection + "_v5e4b1"] = cfutl.accumulate(v5e4b1)
-                #output[jet_collection + "_e4b1"] = cfutl.accumulate(e4b1)
-                output[jet_collection + "_c2b1"] = cfutl.accumulate(jetvars.calculate_ecf_c(1., e2b1, e3b1))
-                output[jet_collection + "_d2b1"] = cfutl.accumulate(jetvars.calculate_ecf_d(1., e2b1, e3b1))
-                output[jet_collection + "_m2b1"] = cfutl.accumulate(jetvars.calculate_ecf_m(e2b1, v1e3b1))
-                output[jet_collection + "_n2b1"] = cfutl.accumulate(jetvars.calculate_ecf_n(e2b1, v2e3b1))
+            beta = 1
+            e2b1 = jetvars.calculate_ecf_e2(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt)
+            #e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
+            v1e3b1, v2e3b1, e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=True)
+            #e4b1 = jetvars.calculate_ecfs_e4(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
+            #v1e4b1, v2e4b1, v3e4b1, v4e4b1, v5e4b1, e4b1 = jetvars.calculate_ecfs_e4(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=True)
+            output[jet_collection + "_e2b1"] = cfutl.accumulate(e2b1)
+            output[jet_collection + "_v1e3b1"] = cfutl.accumulate(v1e3b1)
+            output[jet_collection + "_v2e3b1"] = cfutl.accumulate(v2e3b1)
+            output[jet_collection + "_e3b1"] = cfutl.accumulate(e3b1)
+            #output[jet_collection + "_v1e4b1"] = cfutl.accumulate(v1e4b1)
+            #output[jet_collection + "_v2e4b1"] = cfutl.accumulate(v2e4b1)
+            #output[jet_collection + "_v3e4b1"] = cfutl.accumulate(v3e4b1)
+            #output[jet_collection + "_v4e4b1"] = cfutl.accumulate(v4e4b1)
+            #output[jet_collection + "_v5e4b1"] = cfutl.accumulate(v5e4b1)
+            #output[jet_collection + "_e4b1"] = cfutl.accumulate(e4b1)
+            output[jet_collection + "_c2b1"] = cfutl.accumulate(jetvars.calculate_ecf_c(1., e2b1, e3b1))
+            output[jet_collection + "_d2b1"] = cfutl.accumulate(jetvars.calculate_ecf_d(1., e2b1, e3b1))
+            output[jet_collection + "_m2b1"] = cfutl.accumulate(jetvars.calculate_ecf_m(e2b1, v1e3b1))
+            output[jet_collection + "_n2b1"] = cfutl.accumulate(jetvars.calculate_ecf_n(e2b1, v2e3b1))
 
-                efp_degree = 3
-                efps = jetvars.calculate_efps(jet_pf_cands, efp_degree)
-                # Not storing EFP0, which is always 1, on purpose
-                for idx, efp in enumerate(efps[1:]):
-                    output[jet_collection + "_efp%dd%d" %(idx+1, efp_degree)] = cfutl.accumulate(efp)
+            efp_degree = 3
+            efps = jetvars.calculate_efps(jet_pf_cands, efp_degree)
+            # Not storing EFP0, which is always 1, on purpose
+            for idx, efp in enumerate(efps[1:]):
+                output[jet_collection + "_efp%dd%d" %(idx+1, efp_degree)] = cfutl.accumulate(efp)
 
         return output
 
