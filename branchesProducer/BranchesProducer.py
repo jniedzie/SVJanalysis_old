@@ -170,30 +170,27 @@ class BranchesProducer(processor.ProcessorABC):
             njets = get_collection_size(events, jet_collection)
             sum_pfcands_pt = jetvars.calculate_sum_pfcands_pt(jet_pf_cands, jagged=False)
 
+            # Need to save number of jets to write the TTree with uproot3
             output["n" + jet_collection] = cfutl.accumulate(njets)
+
+            # Generalized angularities
             output[jet_collection + "_ptD"] = cfutl.accumulate(jetvars.calculate_ptD(jet_pf_cands, sum_pfcands_pt=sum_pfcands_pt))
             output[jet_collection + "_LHA"] = cfutl.accumulate(jetvars.calculate_lha(jet_pf_cands, jets, jet_radius, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
             output[jet_collection + "_girth"] = cfutl.accumulate(jetvars.calculate_girth(jet_pf_cands, jets, jet_radius, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
             output[jet_collection + "_thrust"] = cfutl.accumulate(jetvars.calculate_thrust(jet_pf_cands, jets, jet_radius, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
             output[jet_collection + "_multiplicity"] = cfutl.accumulate(jetvars.calculate_multiplicity(jet_pf_cands))
+
+            # Axes
             axis_major, axis_minor, axis_avg = jetvars.calculate_axes(jet_pf_cands, jets, njets=njets)
             output[jet_collection + "_axisMajor"] = cfutl.accumulate(axis_major)
             output[jet_collection + "_axisMinor"] = cfutl.accumulate(axis_minor)
             output[jet_collection + "_axisAvg"] = cfutl.accumulate(axis_avg)
 
-            mr = evtvars.calculate_razor_MR(jets, njets=njets)
-            mrt = evtvars.calculate_razor_MRT(jets, met, njets=njets)
-            output["RazorMR_" + jet_collection] = cfutl.accumulate(mr)
-            output["RazorMRT_" + jet_collection] = cfutl.accumulate(mrt)
-            output["RazorR_" + jet_collection] = cfutl.accumulate(evtvars.calculate_razor_R(mr, mrt))
-
-            output["MT01" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[0,1], njets=njets))
-            output["MT02" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[0,2], njets=njets))
-            output["MT12" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[1,2], njets=njets))
-
+            # Energy fractions
             output[jet_collection + "_chHEF"] = cfutl.accumulate(jetvars.calculate_chHEF(jet_pf_cands, jets, njets=njets))
             output[jet_collection + "_neHEF"] = cfutl.accumulate(jetvars.calculate_neHEF(jet_pf_cands, jets, njets=njets))
 
+            # ECFs
             beta = 1
             e2b1 = jetvars.calculate_ecf_e2(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt)
             #e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
@@ -215,11 +212,25 @@ class BranchesProducer(processor.ProcessorABC):
             output[jet_collection + "_m2b1"] = cfutl.accumulate(jetvars.calculate_ecf_m(e2b1, v1e3b1))
             output[jet_collection + "_n2b1"] = cfutl.accumulate(jetvars.calculate_ecf_n(e2b1, v2e3b1))
 
+            # EFPs
             efp_degree = 3
             efps = jetvars.calculate_efps(jet_pf_cands, efp_degree)
             # Not storing EFP0, which is always 1, on purpose
             for idx, efp in enumerate(efps[1:]):
                 output[jet_collection + "_efp%dd%d" %(idx+1, efp_degree)] = cfutl.accumulate(efp)
+
+            # Event variables
+            # Razor variables
+            mr = evtvars.calculate_razor_MR(jets, njets=njets)
+            mrt = evtvars.calculate_razor_MRT(jets, met, njets=njets)
+            output["RazorMR" + jet_collection] = cfutl.accumulate(mr)
+            output["RazorMRT" + jet_collection] = cfutl.accumulate(mrt)
+            output["RazorR" + jet_collection] = cfutl.accumulate(evtvars.calculate_razor_R(mr, mrt))
+
+            # Transverse mass
+            output["MT01" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[0,1], njets=njets))
+            output["MT02" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[0,2], njets=njets))
+            output["MT12" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[1,2], njets=njets))
 
         return output
 
