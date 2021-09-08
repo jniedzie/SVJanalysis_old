@@ -187,6 +187,9 @@ class BranchesProducer(processor.ProcessorABC):
             output["RazorMRT_" + jet_collection] = cfutl.accumulate(mrt)
             output["RazorR_" + jet_collection] = cfutl.accumulate(evtvars.calculate_razor_R(mr, mrt))
 
+            output["MT01" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[0,1], njets=njets))
+            output["MT02" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[0,2], njets=njets))
+            output["MT12" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[1,2], njets=njets))
 
             output[jet_collection + "_chHEF"] = cfutl.accumulate(jetvars.calculate_chHEF(jet_pf_cands, jets, njets=njets))
             output[jet_collection + "_neHEF"] = cfutl.accumulate(jetvars.calculate_neHEF(jet_pf_cands, jets, njets=njets))
