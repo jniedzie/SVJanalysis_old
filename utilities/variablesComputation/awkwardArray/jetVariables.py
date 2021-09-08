@@ -735,3 +735,21 @@ def calculate_ecf_n(v1ei, v2ej):
     """
 
     return v2ej/v1ei**2
+
+
+def calculate_delta_phi(jets, met, jagged=True):
+    """Calculate azimuthal angle between jets and MET.
+
+    Args:
+        jets (awkward.Array):
+            Ak array where axis 0 is the event axis, axis 1 is the jet axis
+            with name PtEtaPhiMLorentzVector.
+        met (Awkward.Array):
+            Ak array with 1 axis with field phi.
+
+    Returns:
+        awkward.Array
+    """
+
+    met = akutl.broadcast(met, jets)[0]
+    return vecutl.delta_phi(jets, met)

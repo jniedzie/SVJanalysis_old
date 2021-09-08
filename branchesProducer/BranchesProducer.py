@@ -173,6 +173,10 @@ class BranchesProducer(processor.ProcessorABC):
             # Need to save number of jets to write the TTree with uproot3
             output["n" + jet_collection] = cfutl.accumulate(njets)
 
+            # Azimuthal angle between jets and met
+            jets_delta_phi = jetvars.calculate_delta_phi(jets, met)
+            output[jet_collection + "_deltaPhi"] = cfutl.accumulate(jets_delta_phi)
+
             # Generalized angularities
             output[jet_collection + "_ptD"] = cfutl.accumulate(jetvars.calculate_ptD(jet_pf_cands, sum_pfcands_pt=sum_pfcands_pt))
             output[jet_collection + "_LHA"] = cfutl.accumulate(jetvars.calculate_lha(jet_pf_cands, jets, jet_radius, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
@@ -219,7 +223,7 @@ class BranchesProducer(processor.ProcessorABC):
             for idx, efp in enumerate(efps[1:]):
                 output[jet_collection + "_efp%dd%d" %(idx+1, efp_degree)] = cfutl.accumulate(efp)
 
-            # Event variables
+            # Event variables depending on the jet flavor
             # Razor variables
             mr = evtvars.calculate_razor_MR(jets, njets=njets)
             mrt = evtvars.calculate_razor_MRT(jets, met, njets=njets)
@@ -231,6 +235,9 @@ class BranchesProducer(processor.ProcessorABC):
             output["MT01" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[0,1], njets=njets))
             output["MT02" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[0,2], njets=njets))
             output["MT12" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[1,2], njets=njets))
+
+            # Minimal azimuthal angle between jets and MET
+            output["deltaPhiMin" + jet_collection] = cfutl.accumulate(evtvars.calculate_delta_phi_min(jets_delta_phi, njets=njets))
 
         return output
 
