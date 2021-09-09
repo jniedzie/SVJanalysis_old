@@ -157,7 +157,7 @@ def write_root_file(output_file_name, events, cutflow, metadata, debug):
 
 
     print("\nWriting down output ROOT file %s" %output_file_name)
-    with uproot3.recreate(output_file_name) as output_file:
+    with uproot3.recreate(output_file_name, compression=None) as output_file:
         for tree_name in branches.keys():
             # Save tree to output ROOT file
             uproot3utl.write_tree_to_root_file(output_file, tree_name, branches[tree_name], branches_init[tree_name])
