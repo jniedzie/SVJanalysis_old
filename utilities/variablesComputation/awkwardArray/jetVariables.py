@@ -565,6 +565,7 @@ def calculate_ptD(pf_cands, sum_pfcands_pt=None, jagged=True):
 
     ptD2 = calculate_generalized_angularity(pf_cands, None, 1, 0, 2, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
     ptD = np.sqrt(ptD2)
+    ptD = ak.nan_to_num(ptD, nan=-1.)
     return ptD
 
 
