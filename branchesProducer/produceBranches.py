@@ -89,7 +89,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-c", "--chunksize",
         help="Size of the data chunks (default=%(default)s)",
-        default=100000,
+        default=1000,
         type=int,
         )
     parser.add_argument(
