@@ -170,6 +170,11 @@ class BranchesProducer(processor.ProcessorABC):
             njets = get_collection_size(events, jet_collection)
             sum_pfcands_pt = jetvars.calculate_sum_pfcands_pt(jet_pf_cands, jagged=False)
 
+            # Defining a jet_filter to make irregular ak array
+            # e.g. for njets = [[1, 2], [1, 2, 3], [1]]
+            # jet_filter = [[True, True, False], [True, True, True], [True, False, False]]
+            jet_filter = jetvars.make_jet_filter(njets)
+
             # Need to save number of jets to write the TTree with uproot3
             output["n" + jet_collection] = cfutl.accumulate(njets)
 
@@ -178,27 +183,27 @@ class BranchesProducer(processor.ProcessorABC):
             output[jet_collection + "_deltaPhi"] = cfutl.accumulate(jets_delta_phi)
 
             # Generalized angularities
-            output[jet_collection + "_ptD"] = cfutl.accumulate(jetvars.calculate_ptD(jet_pf_cands, sum_pfcands_pt=sum_pfcands_pt))
-            output[jet_collection + "_LHA"] = cfutl.accumulate(jetvars.calculate_lha(jet_pf_cands, jets, jet_radius, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
-            output[jet_collection + "_girth"] = cfutl.accumulate(jetvars.calculate_girth(jet_pf_cands, jets, jet_radius, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
-            output[jet_collection + "_thrust"] = cfutl.accumulate(jetvars.calculate_thrust(jet_pf_cands, jets, jet_radius, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
-            output[jet_collection + "_multiplicity"] = cfutl.accumulate(jetvars.calculate_multiplicity(jet_pf_cands))
+            output[jet_collection + "_ptD"] = cfutl.accumulate(jetvars.calculate_ptD(jet_pf_cands, jet_filter=jet_filter, sum_pfcands_pt=sum_pfcands_pt))
+            output[jet_collection + "_LHA"] = cfutl.accumulate(jetvars.calculate_lha(jet_pf_cands, jets, jet_radius, jet_filter=jet_filter, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
+            output[jet_collection + "_girth"] = cfutl.accumulate(jetvars.calculate_girth(jet_pf_cands, jets, jet_radius, jet_filter=jet_filter, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
+            output[jet_collection + "_thrust"] = cfutl.accumulate(jetvars.calculate_thrust(jet_pf_cands, jets, jet_radius, jet_filter=jet_filter, njets=njets, sum_pfcands_pt=sum_pfcands_pt))
+            output[jet_collection + "_multiplicity"] = cfutl.accumulate(jetvars.calculate_multiplicity(jet_pf_cands, jet_filter=jet_filter))
 
             # Axes
-            axis_major, axis_minor, axis_avg = jetvars.calculate_axes(jet_pf_cands, jets, njets=njets)
+            axis_major, axis_minor, axis_avg = jetvars.calculate_axes(jet_pf_cands, jets, jet_filter=jet_filter, njets=njets)
             output[jet_collection + "_axisMajor"] = cfutl.accumulate(axis_major)
             output[jet_collection + "_axisMinor"] = cfutl.accumulate(axis_minor)
             output[jet_collection + "_axisAvg"] = cfutl.accumulate(axis_avg)
 
             # Energy fractions
-            output[jet_collection + "_chHEF"] = cfutl.accumulate(jetvars.calculate_chHEF(jet_pf_cands, jets, njets=njets))
-            output[jet_collection + "_neHEF"] = cfutl.accumulate(jetvars.calculate_neHEF(jet_pf_cands, jets, njets=njets))
+            output[jet_collection + "_chHEF"] = cfutl.accumulate(jetvars.calculate_chHEF(jet_pf_cands, jets, jet_filter=jet_filter, njets=njets))
+            output[jet_collection + "_neHEF"] = cfutl.accumulate(jetvars.calculate_neHEF(jet_pf_cands, jets, jet_filter=jet_filter, njets=njets))
 
             # ECFs
             beta = 1
-            e2b1 = jetvars.calculate_ecf_e2(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt)
+            e2b1 = jetvars.calculate_ecf_e2(jet_pf_cands, beta, jet_filter=jet_filter, sum_pfcands_pt=sum_pfcands_pt)
             #e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
-            v1e3b1, v2e3b1, e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=True)
+            v1e3b1, v2e3b1, e3b1 = jetvars.calculate_ecfs_e3(jet_pf_cands, beta, jet_filter=jet_filter, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=True)
             #e4b1 = jetvars.calculate_ecfs_e4(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=False)
             #v1e4b1, v2e4b1, v3e4b1, v4e4b1, v5e4b1, e4b1 = jetvars.calculate_ecfs_e4(jet_pf_cands, beta, sum_pfcands_pt=sum_pfcands_pt, calculate_ecfgs=True)
             output[jet_collection + "_e2b1"] = cfutl.accumulate(e2b1)
@@ -218,7 +223,7 @@ class BranchesProducer(processor.ProcessorABC):
 
             # EFPs
             efp_degree = 3
-            efps = jetvars.calculate_efps(jet_pf_cands, efp_degree)
+            efps = jetvars.calculate_efps(jet_pf_cands, efp_degree, jet_filter=jet_filter)
             # Not storing EFP0, which is always 1, on purpose
             for idx, efp in enumerate(efps[1:]):
                 output[jet_collection + "_efp%dd%d" %(idx+1, efp_degree)] = cfutl.accumulate(efp)
@@ -237,7 +242,21 @@ class BranchesProducer(processor.ProcessorABC):
             output["MT12" + jet_collection] = cfutl.accumulate(evtvars.calculate_MT(jets, met, jet_indices=[1,2], njets=njets))
 
             # Minimal azimuthal angle between jets and MET
-            output["deltaPhiMin" + jet_collection] = cfutl.accumulate(evtvars.calculate_delta_phi_min(jets_delta_phi, njets=njets))
+            output["DeltaPhiMin" + jet_collection] = cfutl.accumulate(evtvars.calculate_delta_phi_min(jets_delta_phi, njets=njets))
+
+            # Freeing the memory to avoid memory leaks
+            del jets
+            del jet_pf_cands
+            del njets
+            del sum_pfcands_pt
+            del jet_filter
+            del jets_delta_phi
+            del axis_major, axis_minor, axis_avg
+            del efps
+            del e2b1, v1e3b1, v2e3b1, e3b1
+            del mr, mrt
+
+        del met
 
         return output
 
