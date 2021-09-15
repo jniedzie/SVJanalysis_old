@@ -10,19 +10,44 @@ import physicsUtilities as phutl
 
 
 
-def get_max_jet_idx(pf_cands):
-    """Returns the maximum jet index from PF candidates.
-
-    The PF candidates ak.Array passed in argument must have a jetIdx field.
+def get_max_jet_idx_from_njets(njets):
+    """Returns the maximum jet index from njets array.
 
     Args:
-        pf_cands (ak.Array)
+        njets (ak.Array)
 
     Returns:
         int
     """
 
-    return ak.max(pf_cands.jetIdx)
+    return ak.max(njets) - 1
+
+
+def make_jet_filter(njets):
+    """Make jet filter to make irregular ak array from regular ak array.
+
+    Args:
+        njets (awkward.highlevel.Array): 1 axis with number of jets
+
+    Returns:
+        awkward.highlevel.Array
+
+    Examples:
+    >>> njets = ak.Array([[1, 2], [1, 2, 3], [1]])
+    >>> make_jet_filter(njets)
+    [[True, True, False], [True, True, True], [True, False, False]]
+    """
+
+    max_jet_idx = get_max_jet_idx_from_njets(njets)
+    for jet_idx in range(max_jet_idx+1):
+        if jet_idx == 0:
+            jet_filter = ak.to_numpy(njets > jet_idx)
+        else:
+            jet_filter = np.vstack((jet_filter, ak.to_numpy(njets > jet_idx)))
+    
+    jet_filter = jet_filter.T
+    jet_filter = ak.from_regular(jet_filter)
+    return jet_filter
 
 
 def calculate_sum_pfcands_pt_1_jet(jet_idx, pf_cands):
@@ -434,7 +459,7 @@ def calculate_neHEF_1_jet(jet_idx, pf_cands, nan_value=-1):
     return calculate_HEF_1_jet(False, jet_idx, pf_cands, nan_value=-1)
 
 
-def calculate_jet_variable(variable, pf_cands, jets, njets=None, sum_pfcands_pt=None, nan_value=-1, jagged=True, params={}):
+def calculate_jet_variable(variable, pf_cands, jets, jet_filter=None, njets=None, sum_pfcands_pt=None, nan_value=-1, jagged=True, params={}):
     """Return the desired calculated jet variable for all jets and all events.
 
     Args:
@@ -445,6 +470,10 @@ def calculate_jet_variable(variable, pf_cands, jets, njets=None, sum_pfcands_pt=
         jets (awkward.Array or None):
             Ak array where axis 0 is the event axis, axis 1 is the jet axis
             with required field.
+        jet_filter (awkward.Array, optional, default=None):
+            Ak array where axis 0 is the event axis, axis 1 is the jet axis
+            which contains boolean values indicating whether an event has
+            a jet of a given index or not. See make_jet_filter docstring.
         njets (awkward.Array, optional, default=None):
             Ak array with one axis with number of jets in each event.
             If None, will be computed from jets.
@@ -463,12 +492,26 @@ def calculate_jet_variable(variable, pf_cands, jets, njets=None, sum_pfcands_pt=
         awkward.Array or tuple[awkward.Array]
     """
 
-    if njets is None and jets is not None:
-        njets = ak.num(jets, axis=1)
+    # If njets is none, compute it from pf cands or njets
+    if njets is None:
+        if jets is not None:
+            njets = ak.num(jets, axis=1)
+        elif pf_cands is not None:
+            max_jet_indices = ak.max(pf_cands.jetIdx, axis=1)
+            max_jet_indices = ak.fill_none(max_jet_indices, -1)
+            njets = 1 + max_jet_indices
+        else:
+            print("ERROR: jets and pf_cands cannot be both None.")
 
-    max_idx = get_max_jet_idx(pf_cands)
+    # If jet filter is none, make it
+    if jet_filter is None:
+        jet_filter = make_jet_filter(njets)
 
-    for jet_idx in range(max_idx+1):
+    # Compute maximum jet index
+    max_jet_idx = get_max_jet_idx_from_njets(njets)
+
+    # Loop over all jet indices
+    for jet_idx in range(max_jet_idx+1):
         if variable == "sum_pfcands_pt":
             ak_arrays = calculate_sum_pfcands_pt_1_jet(jet_idx, pf_cands)
         elif variable == "generalized_angularity":
@@ -509,11 +552,11 @@ def calculate_jet_variable(variable, pf_cands, jets, njets=None, sum_pfcands_pt=
     # Need to transpose / swap axes of the ak array to have events in the first axis
     # instead of jets. Maybe there is something smarter than that.
     for idx, ak_array in enumerate(ak_array_list):
-        ak_array = akutl.swap_axes(ak_array)
+        ak_array = akutl.swap_axes(ak_array)[0]
         if jagged:
-            ak_array = ak_array[ak_array != nan_value][0]
+            ak_array = ak_array[jet_filter]
         else:
-            ak_array = ak_array[0]
+            ak_array = ak_array
         ak_array_list[idx] = ak_array
 
     if not is_tuple:
@@ -522,27 +565,27 @@ def calculate_jet_variable(variable, pf_cands, jets, njets=None, sum_pfcands_pt=
         return ak_array_list
 
 
-def calculate_sum_pfcands_pt(pf_cands, jagged=True):
+def calculate_sum_pfcands_pt(pf_cands, jet_filter=None, jagged=True):
     """Return ECF1 for each jet for all events.
 
     See doctring of calculate_sum_pfcands_pt.
     """
 
-    return calculate_jet_variable("sum_pfcands_pt", pf_cands, None, None, nan_value=0., jagged=jagged)
+    return calculate_jet_variable("sum_pfcands_pt", pf_cands, None, jet_filter=jet_filter, nan_value=0., jagged=jagged)
 
 
-def calculate_generalized_angularity(pf_cands, jets, jet_radius, beta, kappa, njets=None, sum_pfcands_pt=None, nan_value=-1, jagged=True):
+def calculate_generalized_angularity(pf_cands, jets, jet_radius, beta, kappa, jet_filter=None, njets=None, sum_pfcands_pt=None, nan_value=-1, jagged=True):
     """Return generalized angularity with parameters beta and kappa for each jet for all events.
 
     See docstring of calculate_generalized_angularity_1_jet.
     """
 
-    return calculate_jet_variable("generalized_angularity", pf_cands, jets, njets=njets, \
+    return calculate_jet_variable("generalized_angularity", pf_cands, jets, jet_filter=jet_filter, njets=njets, \
                                  sum_pfcands_pt=sum_pfcands_pt, jagged=jagged, nan_value=nan_value, \
                                  params={"jet_radius": jet_radius, "beta": beta, "kappa": kappa})
 
 
-def calculate_ptD(pf_cands, sum_pfcands_pt=None, jagged=True):
+def calculate_ptD(pf_cands, jet_filter=None, sum_pfcands_pt=None, jagged=True):
     """Return ptD for each jet for all events.
 
     See docstring of calculate_generalized_angularity_1_jet.
@@ -563,109 +606,109 @@ def calculate_ptD(pf_cands, sum_pfcands_pt=None, jagged=True):
         [[0.739, 0.601], [0.729, 0.714, 0.721]]
     """
 
-    ptD2 = calculate_generalized_angularity(pf_cands, None, 1, 0, 2, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
+    ptD2 = calculate_generalized_angularity(pf_cands, None, 1, 0, 2, jet_filter=jet_filter, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
     ptD = np.sqrt(ptD2)
     ptD = ak.nan_to_num(ptD, nan=-1.)
     return ptD
 
 
-def calculate_lha(pf_cands, jets, jet_radius, njets=None, sum_pfcands_pt=None, jagged=True):
+def calculate_lha(pf_cands, jets, jet_radius, jet_filter=None, njets=None, sum_pfcands_pt=None, jagged=True):
     """Return Les Houches Angularity for each jet for all events.
     
     See docstring of calculate_generalized_angularity_1_jet.
     """
 
-    return calculate_generalized_angularity(pf_cands, jets, jet_radius, 0.5, 1, njets=njets, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
+    return calculate_generalized_angularity(pf_cands, jets, jet_radius, 0.5, 1, jet_filter=jet_filter, njets=njets, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
 
 
-def calculate_girth(pf_cands, jets, jet_radius, njets=None, sum_pfcands_pt=None, jagged=True):
+def calculate_girth(pf_cands, jets, jet_radius, jet_filter=None, njets=None, sum_pfcands_pt=None, jagged=True):
     """Return girth for each jet for all events.
     
     See docstring of calculate_generalized_angularity_1_jet.
     """
 
-    return calculate_generalized_angularity(pf_cands, jets, jet_radius, 1, 1, njets=njets, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
+    return calculate_generalized_angularity(pf_cands, jets, jet_radius, 1, 1, jet_filter=jet_filter, njets=njets, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
 
 
-def calculate_thrust(pf_cands, jets, jet_radius, njets=None, sum_pfcands_pt=None, jagged=True):
+def calculate_thrust(pf_cands, jets, jet_radius, jet_filter=None, njets=None, sum_pfcands_pt=None, jagged=True):
     """Return thrust for each jet for all events.
     
     See docstring of calculate_generalized_angularity_1_jet.
     """
 
-    return calculate_generalized_angularity(pf_cands, jets, jet_radius, 2, 1, njets=njets, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
+    return calculate_generalized_angularity(pf_cands, jets, jet_radius, 2, 1, jet_filter=jet_filter, njets=njets, sum_pfcands_pt=sum_pfcands_pt, jagged=jagged)
 
 
-def calculate_multiplicity(pf_cands, nan_value=0, jagged=True):
+def calculate_multiplicity(pf_cands, jet_filter=None, nan_value=0, jagged=True):
     """Return multiplicity for each jet for all events.
     
     See docstring of calculate_generalized_angularity_1_jet.
     """
 
-    return calculate_generalized_angularity(pf_cands, None, 1., 0, 0, nan_value=0, jagged=jagged)
+    return calculate_generalized_angularity(pf_cands, None, 1., 0, 0, jet_filter=jet_filter, nan_value=0, jagged=jagged)
 
 
-def calculate_axes(pf_cands, jets, njets=None, jagged=True):
+def calculate_axes(pf_cands, jets, jet_filter=None, njets=None, jagged=True):
     """Return axis major, axis minor and axis avg for each jet for all events.
 
     See doctring of calculate_axes_1_jet.
     """
 
-    return calculate_jet_variable("axes", pf_cands, jets, njets=njets, jagged=jagged)
+    return calculate_jet_variable("axes", pf_cands, jets, jet_filter=jet_filter, njets=njets, jagged=jagged)
 
 
-def calculate_efps(pf_cands, degree, jagged=True):
+def calculate_efps(pf_cands, degree, jet_filter=None, jagged=True):
     """Return EFPs up to a certain degree for each jet for all events.
 
     See doctring of calculate_efps_1_jet.
     """
 
-    return calculate_jet_variable("efps", pf_cands, None, nan_value=0, jagged=jagged, params={"degree": degree})
+    return calculate_jet_variable("efps", pf_cands, None, jet_filter=jet_filter, nan_value=0, jagged=jagged, params={"degree": degree})
 
 
-def calculate_ecf_e2(pf_cands, beta, sum_pfcands_pt=None, jagged=True):
+def calculate_ecf_e2(pf_cands, beta, jet_filter=None, sum_pfcands_pt=None, jagged=True):
     """Return ECF2 for each jet for all events.
 
     See doctring of calculate_ecf_e2_1_jet.
     """
 
-    return calculate_jet_variable("ecf_e2", pf_cands, None, sum_pfcands_pt=sum_pfcands_pt, nan_value=-1, jagged=jagged, params={"beta": beta})
+    return calculate_jet_variable("ecf_e2", pf_cands, None, jet_filter=jet_filter, sum_pfcands_pt=sum_pfcands_pt, nan_value=-1, jagged=jagged, params={"beta": beta})
 
 
-def calculate_ecfs_e3(pf_cands, beta, sum_pfcands_pt=None, jagged=True, calculate_ecfgs=True):
+def calculate_ecfs_e3(pf_cands, beta, jet_filter=None, sum_pfcands_pt=None, jagged=True, calculate_ecfgs=True):
     """Return ECF3 for each jet for all events.
 
     See doctring of calculate_ecf_e3_1_jet.
     """
 
-    return calculate_jet_variable("ecfs_e3", pf_cands, None, sum_pfcands_pt=sum_pfcands_pt, nan_value=-1, jagged=jagged, params={"beta": beta, "calculate_ecfgs": calculate_ecfgs})
+    return calculate_jet_variable("ecfs_e3", pf_cands, None, jet_filter=jet_filter, sum_pfcands_pt=sum_pfcands_pt, nan_value=-1, jagged=jagged, params={"beta": beta, "calculate_ecfgs": calculate_ecfgs})
 
 
-def calculate_ecfs_e4(pf_cands, beta, sum_pfcands_pt=None, jagged=True, calculate_ecfgs=True):
+def calculate_ecfs_e4(pf_cands, beta, jet_filter=None, sum_pfcands_pt=None, jagged=True, calculate_ecfgs=True):
     """Return ECF4 for each jet for all events.
 
     See doctring of calculate_ecf_e4_1_jet.
     """
 
-    return calculate_jet_variable("ecfs_e4", pf_cands, None, sum_pfcands_pt=sum_pfcands_pt, nan_value=-1, jagged=jagged, params={"beta": beta, "calculate_ecfgs": calculate_ecfgs})
+    return calculate_jet_variable("ecfs_e4", pf_cands, None, jet_filter=jet_filter, sum_pfcands_pt=sum_pfcands_pt, nan_value=-1, jagged=jagged, params={"beta": beta, "calculate_ecfgs": calculate_ecfgs})
 
 
-def calculate_chHEF(pf_cands, jets, njets=None, jagged=True):
+def calculate_chHEF(pf_cands, jets, jet_filter=None, njets=None, jagged=True):
     """Return charged hadron energy fraction for each jet for all events.
     
     See doctring of calculate_HEF_1_jet.
     """
 
-    return calculate_jet_variable("chHEF", pf_cands, jets, njets=njets, jagged=jagged)
+    return calculate_jet_variable("chHEF", pf_cands, jets, jet_filter=jet_filter, njets=njets, jagged=jagged)
 
 
-def calculate_neHEF(pf_cands, jets, njets=None, jagged=True):
+def calculate_neHEF(pf_cands, jets, jet_filter=None, njets=None, jagged=True):
     """Return neutral hadron energy fraction for each jet for all events.
 
     See doctring of calculate_HEF_1_jet.
     """
 
-    return calculate_jet_variable("neHEF", pf_cands, jets, njets=njets, jagged=jagged)
+    return calculate_jet_variable("neHEF", pf_cands, jets, jet_filter=jet_filter, njets=njets, jagged=jagged)
 
 
 
