@@ -135,10 +135,18 @@ class SingleEventLevel():
         self.variables = self.event_level.fields
 
 
-    @property
-    def genWeight(self):
-        return self.event_level.genWeight
+    def __getattr__(self, attr):
+        if attr in self.variables:
+            return self.event_level.__getattr__(attr)
+        else:
+            return super(SingleEventLevel, self).__getattr__(attr)
 
+#    def __getattr__(self, name):
+#        if name in self.variables:
+#            return getattr(self.event_level, name)
+#        else:
+#            return getattr(self, name)
+ 
 
 
 class Met():
@@ -169,18 +177,12 @@ class Met():
         self.met = make_ak_array_collection(met, met_variables)
         self.variables = self.met.fields
 
-
-    @property
-    def pt(self):
-        return self.met.pt
-
-    @property
-    def phi(self):
-        return self.met.phi
-
-    @property
-    def sumEt(self):
-        return self.met.sumEt
+ 
+    def __getattr__(self, attr):
+        if attr in self.variables:
+            return self.met.__getattr__(attr)
+        else:
+            return super(Met, self).__getattr__(attr)
 
 
 class Jets():
@@ -263,58 +265,12 @@ class Jets():
         self.filter_ = self.filter_[cut]
 
 
-    @property
-    def pt(self):
-        return self.jet.pt
-
-    @property
-    def eta(self):
-        return self.jet.eta
-
-    @property
-    def phi(self):
-        return self.jet.phi
-
-    @property
-    def mass(self):
-        return self.jet.mass
-
-    @property
-    def msoftdrop(self):
-        return self.jet.msoftdrop
-
-    @property
-    def n2b1(self):
-        return self.jet.n2b1
-
-    @property
-    def n3b1(self):
-        return self.jet.n3b1
-
-    @property
-    def tau1(self):
-        return self.jet.tau1
-
-    @property
-    def tau2(self):
-        return self.jet.tau2
-
-    @property
-    def tau3(self):
-        return self.jet.tau3
-
-    @property
-    def tau4(self):
-        return self.jet.tau4
-
-    @property
-    def chHEF(self):
-        return self.jet.chHEF
-
-    @property
-    def neHEF(self):
-        return self.jet.neHEF
-
+    def __getattr__(self, attr):
+        if attr in self.variables:
+            return self.jet.__getattr__(attr)
+        else:
+            return super(Jets, self).__getattr__(attr)
+ 
 
 
 class PfCands():
@@ -359,38 +315,12 @@ class PfCands():
         self.n = ak.count(getattr(self, self.variables[0]), axis=1)
 
 
-    @property
-    def pt(self):
-        return self.pf_cands.pt
-
-    @property
-    def eta(self):
-        return self.pf_cands.eta
-
-    @property
-    def phi(self):
-        return self.pf_cands.phi
-
-    @property
-    def mass(self):
-        return self.pf_cands.mass
-
-    @property
-    def charge(self):
-        return self.pf_cands.charge
-
-    @property
-    def pdgId(self):
-        return self.pf_cands.pdgId
-
-    @property
-    def trkChi2(self):
-        return self.pf_cands.trkChi2
-
-    @property
-    def vtxChi2(self):
-        return self.pf_cands.vtxChi2
-
+    def __getattr__(self, attr):
+        if attr in self.variables:
+            return self.pf_cands.__getattr__(attr)
+        else:
+            return super(PfCands, self).__getattr__(attr)
+ 
 
 
 class JetPfCandsMatchingTable():
