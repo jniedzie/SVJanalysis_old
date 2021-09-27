@@ -135,7 +135,7 @@ submit_one_job_per_file() {
     fi
     if [ "${last_part_number}" == "-1" ]; then
         local last_part_number=${number_of_files}
-    elif [ "$(get_first_character ${last_part_number} 1)" == "." ]; then
+    elif [ "$(get_first_characters ${last_part_number} 1)" == "." ] || [ "$(get_first_characters ${last_part_number} 2)" == "0." ]; then
         local last_part_number=$(awk -vp=${number_of_files} -vq=${last_part_number} 'BEGIN{printf "%.0f" ,p * q}')
     fi
 
