@@ -140,7 +140,7 @@ submit_one_job_per_file() {
     fi
 
     # Submit one job per file
-    for ((part=${first_part_number}; part<=${first_part_number}+${last_part_number}; part++)); do
+    for ((part=${first_part_number}; part<=${last_part_number}; part++)); do
     #for ((part=1; part<2; part++)); do  # for tests
         echo ""
 
