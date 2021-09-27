@@ -1,10 +1,10 @@
 #!/bin/bash
 # 
-#SBATCH --partition short
+#SBATCH --partition {partition}
 #SBATCH --account=t3
 #SBATCH --job-name={jobName}
-#SBATCH --mem=3000M
-#SBATCH --time 01:00:00
+#SBATCH --mem={memory}
+#SBATCH --time {timeLimit}
 #SBATCH -o {logDir}/%x-%j.out    # replace default slurm-SLURM_JOB_ID.out; %x is a job-name (or script name when there is no job-name)
 #SBATCH -e {logDir}/%x-%j.err    # replace default slurm-SLURM_JOB_ID.err 
 
@@ -89,7 +89,7 @@ fi
 echo -e "\nMaking pre-selections..."
 cd ../../
 output_file=${tmpdir}/output.root
-python makePreSelection.py -i ${input_file} -xsec {xsec} -o ${output_file} -t PFNanoAOD_106X_v02 -c 100000 -p Preselection_tchannel
+python makePreSelection.py -i ${input_file} -xsec {xsec} -o ${output_file} -t PFNanoAOD_106X_v02 -c 300 -m 20 -p Preselection_tchannel
 
 
 # Copy produced file into storage element
