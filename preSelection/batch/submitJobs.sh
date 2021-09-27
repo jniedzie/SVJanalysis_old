@@ -5,7 +5,7 @@ source ../../utilities/slurmJobSubmission/slurmJobSubmissionUtilities.sh
 
 
 # Sample to run
-sample=QCD
+sample=tchannel
 
 
 get_output_directory_for_sample() {
@@ -44,6 +44,8 @@ output_directory=$(get_output_directory_for_sample ${sample})
 first_part_number=-1
 last_part_number=-1
 
+xsec_file=cross_sections.txt
+
 
 ###################
 ###  t-channel  ###
@@ -56,9 +58,6 @@ if [ "${sample}" == "tchannel" ]; then
     time_limit=01:00:00
     memory=3000M
 
-    file_list_directory=${PWD}/samplesInformation/tchannel_106X_v02/files
-    xsec_directory=${PWD}/samplesInformation/tchannel_106X_v02/cross_sections
-
     xrdcp_files=false
     force_recreate=false
   
@@ -69,7 +68,7 @@ if [ "${sample}" == "tchannel" ]; then
     alphaList=(peak peak peak peak peak)
     
     # Loop over all models
-    for ((imodel=0; imodel<1; imodel++)); do
+    for ((imodel=0; imodel<5; imodel++)); do
         echo ""
   
         # Get model parameters
@@ -81,8 +80,9 @@ if [ "${sample}" == "tchannel" ]; then
         # Define model name
         model=t-channel_mMed-${mMed}_mDark-${mDark}_rinv-${rinv}_alpha-${alpha}_yukawa-1_13TeV-madgraphMLM-pythia8
     
-        files_list_file=${file_list_directory}/${model}_files.txt
-        xsec=$(cat ${xsec_directory}/${model}_xsec.txt)
+        relative_path_to_files_list=inputFilesLists/tchannel_106X_v02/${model}_files.txt
+        files_list_file=${PWD}/${relative_path_to_files_list}
+        xsec=$(cat ${xsec_file} | grep ${relative_path_to_files_list} | cut -d' ' -f 2-)
 
         specific_flags=-xsec:${xsec}
 
@@ -98,13 +98,13 @@ fi
 
 if [ "${sample}" == "QCD" ]; then
 
+    # Overiding default last part number to loop over 5% of the dataset
+    last_part_number=.05
+
     slurm_job_template_name=default
     partition=standard
     time_limit=12:00:00
     memory=4000M
-
-    file_list_directory=${PWD}/samplesInformation/QCD_106X_v02/files/lite
-    xsec_directory=${PWD}/samplesInformation/QCD_106X_v02/cross_sections
 
     xrdcp_files=true
     force_recreate=false
@@ -114,7 +114,7 @@ if [ "${sample}" == "QCD" ]; then
     pt2List=(300 470 600 800 1000 1400 1800 2400 3200 Inf )
     
     # Loop over all models
-    for ((imodel=1; imodel<10; imodel++)); do
+    for ((imodel=0; imodel<10; imodel++)); do
         echo ""
 
         # Get model parameters
@@ -124,8 +124,9 @@ if [ "${sample}" == "QCD" ]; then
         # Define model name
         model=QCD_pt_${pt1}to${pt2}
 
-        files_list_file=${file_list_directory}/${model}_files.txt
-        xsec=$(cat ${xsec_directory}/${model}_xsec.txt)
+        relative_path_to_files_list=inputFilesLists/QCD_106X_v02/${model}_files.txt
+        files_list_file=${PWD}/${relative_path_to_files_list}
+        xsec=$(cat ${xsec_file} | grep ${relative_path_to_files_list} | cut -d' ' -f 2-)
 
         specific_flags=-xsec:${xsec}
 
@@ -141,13 +142,13 @@ fi
 
 if [ "${sample}" == "ttbar" ]; then
 
+    # Overiding default last part number to loop over 1% of the dataset
+    last_part_number=.01
+
     slurm_job_template_name=default
     partition=standard
     time_limit=12:00:00
     memory=4000M
-
-    file_list_directory=${PWD}/samplesInformation/ttbar_106X_v02/files/lite
-    xsec_directory=${PWD}/samplesInformation/ttbar_106X_v02/cross_sections
 
     xrdcp_files=true
     force_recreate=false
@@ -155,8 +156,9 @@ if [ "${sample}" == "ttbar" ]; then
     # Define model name
     model=ttbar
 
-    files_list_file=${file_list_directory}/${model}_files.txt
-    xsec=$(cat ${xsec_directory}/${model}_xsec.txt)
+    relative_path_to_files_list=inputFilesLists/ttbar_106X_v02/${model}_files.txt
+    files_list_file=${PWD}/${relative_path_to_files_list}
+    xsec=$(cat ${xsec_file} | grep ${relative_path_to_files_list} | cut -d' ' -f 2-)
 
     specific_flags=-xsec:${xsec}
 
