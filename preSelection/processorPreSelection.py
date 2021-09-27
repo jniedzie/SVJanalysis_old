@@ -221,6 +221,16 @@ class Preselection_tchannel(processor.ProcessorABC):
             fill_jet_pf_cands_matching_table(accumulator, good_ak4_jet_pf_cands_matching_table, "AK4")
             fill_jet_pf_cands_matching_table(accumulator, good_ak8_jet_pf_cands_matching_table, "AK8")
 
+        # Explicitly freeing the memory to avoid memory leaks
+        del events
+        del good_ak4_jets
+        del good_ak8_jets
+        del good_pf_cands
+        del good_ak4_jet_pf_cands_matching_table
+        del good_ak8_jet_pf_cands_matching_table
+        del mets
+        del single_event_level
+
         return accumulator
 
 
