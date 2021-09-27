@@ -1,6 +1,7 @@
+import sys
+
 import numpy as np
 import awkward as ak
-import sys
 
 sys.path.append("../utilities/")
 import nameUtilities as nameutl

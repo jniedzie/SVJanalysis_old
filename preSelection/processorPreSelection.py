@@ -1,6 +1,7 @@
-from coffea import processor
-import awkward as ak
 import sys
+
+import awkward as ak
+from coffea import processor
 
 sys.path.append("../utilities/")
 import nameUtilities as nameutl
