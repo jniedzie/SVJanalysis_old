@@ -90,14 +90,14 @@ def inregex(name, regex_list):
 
     Args:
         name (str)
-        regex_list (str or list)
+        regex_list (list): list or any type that can be casted to a list
     
     Returns:
         list[int]
     """
 
     if not isinstance(regex_list, list):
-        regex_list = [regex_list]
+        regex_list = list(regex_list)
     indices = []
     for idx, regex in enumerate(regex_list):
         research = re.search(regex, name)
