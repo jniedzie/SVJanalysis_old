@@ -1,12 +1,12 @@
-from coffea import processor
-from coffea.nanoevents import NanoAODSchema
-import uproot3
-import numpy as np
 import sys
 import os
 import time
 import argparse
-from collections import OrderedDict
+
+import numpy as np
+import uproot3
+from coffea import processor
+from coffea.nanoevents import NanoAODSchema
 
 sys.path.append("../utilities/")
 import utilities as utl
@@ -162,16 +162,6 @@ def write_root_file(output_file_name, events, cutflow, metadata, debug):
             # Save tree to output ROOT file
             uproot3utl.write_tree_to_root_file(output_file, tree_name, branches[tree_name], branches_init[tree_name])
             print("TTree %s saved to output file" %tree_name)
-
-        ## Save cutflow to output ROOT file
-        #tree_name = "Cutflow"
-        #uproot3utl.write_tree_to_root_file(root_file, tree_name, branches_cutflow, branches_init_cutflow)
-        #print("TTree %s saved to output file %s" %(tree_name, output_file))
-
-        ## Save some metadata to output ROOT file
-        #tree_name = "Metadata"
-        #uproot3utl.write_tree_to_root_file(root_file, tree_name, branches_metadata, branches_init_metadata)
-        #print("TTree %s saved to output file %s" %(tree_name, output_file))
 
     return
 
