@@ -34,7 +34,7 @@ def make_file_list(files_arg):
     or "[" in files_arg or "{" in files_arg:
         root_files = run_bash_command("ls %s 2>/dev/null" %files_arg).split("\n")
     # If list of ROOT files in txt file
-    elif not files_arg.endswith(".root"):
+    elif files_arg.endswith(".txt"):
         with open (files_arg, "r") as txt_file:
             root_files = [ x.replace("\n", "") for x in txt_file.readlines() ]
     # Else we assume coma separated list of ROOT files
