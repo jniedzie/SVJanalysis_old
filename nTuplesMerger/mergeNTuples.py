@@ -50,7 +50,7 @@ def get_unique_branch_names(file_names, tree_name):
     return branches_to_read
 
 
-def branches_merging(file_names, tree_name):
+def make_branches_merging(file_names, tree_name):
     """Return tree branches for branches merging algorithm.
 
     Args:
@@ -74,7 +74,7 @@ def branches_merging(file_names, tree_name):
     return tree_branches
 
 
-def events_merging(file_names, tree_name):
+def make_events_merging(file_names, tree_name):
     """Return tree branches for events merging algorithm.
 
     Args:
@@ -98,7 +98,7 @@ def events_merging(file_names, tree_name):
     return tree_branches
 
 
-def sum_merging(file_names, tree_name):
+def make_sum_merging(file_names, tree_name):
     """Return tree branches for sum merging algorithm.
 
     Args:
@@ -122,7 +122,7 @@ def sum_merging(file_names, tree_name):
     return tree_branches
 
 
-def metadata_merging(file_names, tree_name, efficiency_branch_name="TotalCutEfficiency",
+def make_metadata_merging(file_names, tree_name, efficiency_branch_name="TotalCutEfficiency",
     original_format_branch_name="OriginalFormat", cross_section_branch_name="GenCrossSection",
     gen_weight_branch_name="Cutflow/AllCuts"):
     """Return tree branches for metadata merging algorithm.
@@ -161,7 +161,7 @@ def metadata_merging(file_names, tree_name, efficiency_branch_name="TotalCutEffi
     return tree_branches
 
 
-def efficiencies_merging(file_names, tree_name, weight_branch_name=""):
+def make_efficiencies_merging(file_names, tree_name, weight_branch_name=""):
     """Return tree branches for efficiencies merging algorithm.
 
     Efficiencies from the different files are weighted by the sum of the
@@ -198,7 +198,7 @@ def efficiencies_merging(file_names, tree_name, weight_branch_name=""):
     return tree_branches
 
 
-def first_found_merging(file_names, tree_name):
+def make_first_found_merging(file_names, tree_name):
     """Return tree branches for branches merging algorithm.
 
     Args:
@@ -268,25 +268,25 @@ def main(file_names, tree_names, merging_algos, output_file, debug):
     for tree_name, merging_algo in zip(tree_names, merging_algos):
 
         if merging_algo == "branches":
-            trees[tree_name] = branches_merging(file_names, tree_name)
+            trees[tree_name] = make_branches_merging(file_names, tree_name)
 
         elif merging_algo == "events":
-            trees[tree_name] = events_merging(file_names, tree_name)
+            trees[tree_name] = make_events_merging(file_names, tree_name)
 
         elif merging_algo == "sum":
-            trees[tree_name] = sum_merging(file_names, tree_name)
+            trees[tree_name] = make_sum_merging(file_names, tree_name)
 
         elif merging_algo == "metadata":
-            trees[tree_name] = metadata_merging(file_names, tree_name)
+            trees[tree_name] = make_metadata_merging(file_names, tree_name)
 
         elif merging_algo.startswith("efficiencies"):
             # merging_algo can be efficiencies or efficiencies:<weight_branch_name>
             weight_branch_name = merging_algo.replace("efficiencies:", "")
             weight_branch_name = weight_branch_name.replace("efficiencies", "")
-            trees[tree_name] = efficiencies_merging(file_names, tree_name, weight_branch_name)
+            trees[tree_name] = make_efficiencies_merging(file_names, tree_name, weight_branch_name)
            
         elif merging_algo == "firstFound":
-            trees[tree_name] = first_found_merging(file_names, tree_name)
+            trees[tree_name] = make_first_found_merging(file_names, tree_name)
 
         else:
             print("ERROR: Unknown merging algorithm: %s" %merging_algo)
