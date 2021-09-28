@@ -128,6 +128,8 @@ def obj_to_ak_array(obj):
         ak_array = obj
     elif isinstance(obj, np.ndarray):
         ak_array = ak.Array(obj)
+    elif isinstance(obj, list):
+        ak_array = ak.Array(obj)
     elif isinstance(obj, np.float32) or isinstance(obj, np.float64) or isinstance(obj, np.int32) or isinstance(obj, np.int64) \
         or isinstance(obj, float) or isinstance(obj, int):
         ak_array = ak.Array([obj])

@@ -10,8 +10,10 @@ import utilities
 import awkwardArrayUtilities as akutl
 
 
-def __send_casting_warning(dtype, new_dtype, branch_name):
-    print("WARNING: Casting branch %s from %s to %s because uproot does not handle %s!" %(branch_name, dtype, new_dtype, dtype))
+def __send_casting_warning(dtype, new_dtype, branch_name, jagged=False):
+    warning = "WARNING: Casting branch %s from %s to %s because uproot does not handle %s!" %(branch_name, dtype, new_dtype, dtype)
+    if jagged: warning += "\b jagged arrays!"
+    print(warning)
     return
 
 
@@ -24,7 +26,7 @@ def __get_dtype(branch, branch_name="\b"):
     """Return branch data type.
 
     Args:
-        branch (coffea.processor.accumulator.column_accumulator, branch, np.ndarray or
+        branch (coffea.processor.accumulator.column_accumulator, np.ndarray or
                 awkward.highlevel.Array)
         branch_name (str, optional): banch name for printing out precise warnings
 
@@ -32,13 +34,18 @@ def __get_dtype(branch, branch_name="\b"):
         str
     """
 
+    nbits_max = 32
+
     if isinstance(branch, processor.accumulator.column_accumulator) \
     or isinstance(branch, np.ndarray):
         dtype = branch.dtype
+        jagged_branch = False
 
     elif isinstance(branch, ak.highlevel.Array):
-        dtype = ("%s" %ak.type(branch)).split("*")[-1][1:]
-
+        type_ = str(ak.type(branch))
+        dtype = type_.split("*")[-1][1:]
+        jagged_branch = True if "var" in type_ else False
+     
     else:
         supported_classes = ["coffea.processor.accumulator.column_accumulator", "numpy.ndarray", "awkward.highlevel.Array"]
         print("ERROR: Branch %s is from an unsupported class: %s" %(branch_name, type(branch)))
@@ -46,27 +53,49 @@ def __get_dtype(branch, branch_name="\b"):
         for class_ in supported_classes: print("\t%s" %class_)
         sys.exit()
 
+    new_dtype = dtype
+
+    # If type cannot be inferred, the type will be e.g. of the form ?int32
+    if new_dtype.startswith("?"):
+        new_dtype = dtype[1:]
+
     # uint type is not supported by uproot3
     # As long as values in the array do not exceed 2147483647 then casting brutaly from uint32 to int32 should be harmless
-    re_search = re.search(r'uint([0-9]+)', dtype)
+    send_casting_warning = False
+    send_max_value_warning = False
+    re_search = re.search(r'uint([0-9]+)', new_dtype)
     if re_search:
+        send_casting_warning = True
         nbits = int(re_search.group(1))
         # int8 cannot be read properly by ROOT yet
         if nbits == 8:
             new_dtype = "int16"
-            print_max_value_warning = False
-        # int32, int64, ... are fine
+        # int16, int32 are fine
         else:
-            new_dtype = dtype[1:]
-            print_max_value_warning = True
-
-        __send_casting_warning(dtype, new_dtype, branch_name)
-        if print_max_value_warning:
+            send_max_value_warning = True
+            new_dtype = new_dtype[1:]
             max_value_allowed = 2**(nbits-1) - 1
-            __send_max_value_warning(max_value_allowed, branch_name)
-        dtype = new_dtype
 
-    return dtype
+    # uproot3 and uproot do not handle jagged branch with type float64 or int64
+    # Casting to float32 and int32
+    # More info at https://github.com/scikit-hep/uproot3/issues/506
+    if jagged_branch:
+        re_search = re.search(r'(int|float)([0-9]+)', new_dtype)
+        if re_search and int(re_search.group(2)) > nbits_max:
+            send_casting_warning = True
+            type_name = re_search.group(1)
+            new_dtype = type_name + str(nbits_max)
+            if type_name == "int":
+                send_max_value_warning = True
+                max_value_allowed = 2**31 - 1
+
+    if send_casting_warning:
+        __send_casting_warning(dtype, new_dtype, branch_name, jagged=True)
+
+    if send_max_value_warning:
+        __send_max_value_warning(max_value_allowed, branch_name)
+
+    return new_dtype
 
 
 def __get_size_branch_names(tree):
@@ -212,7 +241,7 @@ def make_branches(tree, debug=False):
         branch_init = __make_branch_init(branch_name, dtype, size_branch_names)
         if branch_init is not None: branches_init[branch_name] = branch_init
         if debug:
-            print("%s:\ttype=%s   dtype=%s" %(branch_name, ak.type(branch), dtype))
+            print("%s:\ttype=%s   dtype=%s" %(branch_name, type_, dtype))
 
     # Run checks: e.g. delete branches with bugs, like incorrrect length
     __run_branch_checks(branches, branches_init, branches_size)

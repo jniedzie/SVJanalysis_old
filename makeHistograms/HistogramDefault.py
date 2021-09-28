@@ -20,7 +20,6 @@ class HistogramDefault(processor.ProcessorABC):
         * self.gen_weights_info
         * self.cuts
         * self._accumulator
-        * self.file_type (will soon be obsolete when using 106X PFNanoAOD format only)
 
     initialize_ak_arrays must return the following objects:
         * var_arrays (dict): arrays for all variables
@@ -105,7 +104,8 @@ class HistogramDefault(processor.ProcessorABC):
                 var = variable_template
                 for k, v in params_dict.items():
                     var = var.replace("{"+k+"}", v)
-                variables.append(var)
+                if var not in variables:
+                    variables.append(var)
 
         return variables
 

@@ -1,6 +1,50 @@
 from collections import Counter
 import re
 import json
+import subprocess
+
+
+def run_bash_command(bash_command):
+    """Returns the output of a bash command.
+
+    Args:
+        bash_command (str)
+
+    Returns:
+        str
+    """
+
+    return subprocess.Popen(bash_command, shell=True, stdout=subprocess.PIPE).stdout.read().decode("utf-8")[:-1]
+
+
+def make_file_list(files_arg):
+    """Make list of ROOT files to merge.
+
+    Args:
+        files_arg (str): files argument from the argument parser.
+            Comma separated ROOT file names e.g. file1.root,file2.root or
+            text file name with a ROOT file name on each line.
+
+    Returns:
+        list[str]
+    """
+
+    # If the file argument has file name expansion (not really a regex, ls does not support regex)
+    if "*" in files_arg or "!" in files_arg or "?" in files_arg or "^" in files_arg \
+    or "[" in files_arg or "{" in files_arg:
+        root_files = run_bash_command("ls %s 2>/dev/null" %files_arg).split("\n")
+    # If list of ROOT files in txt file
+    elif files_arg.endswith(".txt"):
+        with open (files_arg, "r") as txt_file:
+            root_files = [ x.replace("\n", "") for x in txt_file.readlines() ]
+    # Else we assume coma separated list of ROOT files
+    else:
+        root_files = files_arg.split(",")
+
+    # In case there were empty lines in txt file or extra comas, remove empty strings
+    root_files = [ x for x in root_files if x != "" ]
+
+    return root_files
 
 
 def list2str(list_, str_for_concatenation=""):
@@ -46,14 +90,14 @@ def inregex(name, regex_list):
 
     Args:
         name (str)
-        regex_list (str or list)
+        regex_list (list): list or any type that can be casted to a list
     
     Returns:
         list[int]
     """
 
     if not isinstance(regex_list, list):
-        regex_list = [regex_list]
+        regex_list = list(regex_list)
     indices = []
     for idx, regex in enumerate(regex_list):
         research = re.search(regex, name)

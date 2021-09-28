@@ -1,24 +1,21 @@
-from coffea import processor
-import awkward as ak
 import sys
+
+import awkward as ak
+from coffea import processor
 
 sys.path.append("../utilities/")
 import nameUtilities as nameutl
 import coffeaUtilities as cfutl
-
 import objects as obj
+from metFilters import met_filters
+from triggers import selected_triggers
 
 
-MET_FILTERS = (
-    "goodVertices",
-    "globalSuperTightHalo2016Filter",
-    "HBHENoiseFilter",
-    "HBHENoiseIsoFilter",
-    "EcalDeadCellTriggerPrimitiveFilter",
-    "BadPFMuonFilter",
-    "eeBadScFilter",
-    )
+def capitalize(word):
+    return word[0].upper() + word[1:]
 
+def get_number_of_events(events):
+    return ak.sum(events.genWeight)
 
 
 def apply_tchannel_cuts(events, accumulator):
@@ -32,17 +29,23 @@ def apply_tchannel_cuts(events, accumulator):
         None
     """
 
-    ## Highest efficiency HLT trigger
-    events = events[events.HLT.PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60]
-    accumulator["cutflow"]["trigger"] = ak.sum(events.genWeight)
+    # Trigger requirements
+    trigger_selection = None
+    for trigger in selected_triggers:
+        trigger_branch = getattr(events.HLT, trigger)
+        if trigger_selection is None:
+            trigger_selection = trigger_branch
+        else:
+            trigger_selection = (trigger_selection | trigger_branch)
+    events = events[trigger_selection]
+    accumulator["cutflow"]["Trigger"] += get_number_of_events(events)
 
-    ## MET filters
-    for METFilter in MET_FILTERS:
-        events = events[getattr(events.Flag, METFilter)]
-        accumulator["cutflow"][METFilter] = ak.sum(events.genWeight)
+    # MET filters
+    for met_filter in met_filters:
+        events = events[getattr(events.Flag, met_filter)]
+        accumulator["cutflow"][capitalize(met_filter)] = get_number_of_events(events)
 
     return events
-
 
 
 def fill_collection_variables(accumulator, objects, collection_name):
@@ -139,12 +142,13 @@ def fill_single_event_level_variables(accumulator, single_event_level_collection
 class Preselection_tchannel(processor.ProcessorABC):
     """Make coffea accumulator containing events branches and cutflow.
 
-    Selects events:
-       * passing higest efficiency trigger (HLT_PFMETNoMu120_PFMHTNoMu120_IDTight_PFHT60, evaluated on baseline model)
-       * passing MET filters: https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2
     Selects objects:
        * AK8 jets satisfying pt > 200 GeV and |eta| < 2.4
        * AK4 jets satisfying pt > 30  GeV and |eta| < 2.4
+    Selects events:
+       * passing all MET and JetHT triggers
+       * passing MET filters: https://twiki.cern.ch/twiki/bin/viewauth/CMS/MissingETOptionalFiltersRun2
+       * having 2 good AK4 jets
     """
 
     def __init__(self, input_file_type="PFNanoAOD_106X_v02"):
@@ -180,7 +184,7 @@ class Preselection_tchannel(processor.ProcessorABC):
         accumulator = self.accumulator.identity()
 
         accumulator["cutflow"] = processor.defaultdict_accumulator(float)
-        accumulator["cutflow"]["all"] = ak.sum(events.genWeight)
+        accumulator["cutflow"]["NoCut"] = get_number_of_events(events)
 
         ## Event selection
         events = apply_tchannel_cuts(events, accumulator)
@@ -188,6 +192,13 @@ class Preselection_tchannel(processor.ProcessorABC):
         # Good jets
         good_ak4_jets = obj.Jets(events, "AK4", self.input_file_type, cut="(jet.pt > 30 ) & (np.abs(jet.eta) < 2.4)")
         good_ak8_jets = obj.Jets(events, "AK8", self.input_file_type, cut="(jet.pt > 200) & (np.abs(jet.eta) < 2.4)")
+
+        # Keeping only events with more than 2 good AK4 jets
+        filter_ = (good_ak4_jets.n >= 2)
+        events = events[filter_]
+        good_ak4_jets.apply_cut(filter_)
+        good_ak8_jets.apply_cut(filter_)
+        accumulator["cutflow"]["2GoodAk4Jets"] = get_number_of_events(events)
 
         # Good PF candidates
         good_pf_cands = obj.PfCands(events, self.input_file_type)
@@ -210,6 +221,16 @@ class Preselection_tchannel(processor.ProcessorABC):
             fill_pf_cands_variables(accumulator, good_pf_cands)
             fill_jet_pf_cands_matching_table(accumulator, good_ak4_jet_pf_cands_matching_table, "AK4")
             fill_jet_pf_cands_matching_table(accumulator, good_ak8_jet_pf_cands_matching_table, "AK8")
+
+        # Explicitly freeing the memory to avoid memory leaks
+        del events
+        del good_ak4_jets
+        del good_ak8_jets
+        del good_pf_cands
+        del good_ak4_jet_pf_cands_matching_table
+        del good_ak8_jet_pf_cands_matching_table
+        del mets
+        del single_event_level
 
         return accumulator
 

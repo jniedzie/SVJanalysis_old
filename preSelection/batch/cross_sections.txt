@@ -1,0 +1,27 @@
+# Cross-sections in pb for the samples in inputFilesLists/
+# Syntax:
+# path/to/files/list/from/here xsec
+# Note: There can be several spaces in between path and xsec
+#
+#
+# t-channel
+inputFilesLists/tchannel_106X_v02/t-channel_mMed-500_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8_files.txt   21.7
+inputFilesLists/tchannel_106X_v02/t-channel_mMed-1000_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8_files.txt  1.247
+inputFilesLists/tchannel_106X_v02/t-channel_mMed-1500_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8_files.txt  0.25
+inputFilesLists/tchannel_106X_v02/t-channel_mMed-2000_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8_files.txt  0.08492
+inputFilesLists/tchannel_106X_v02/t-channel_mMed-3000_mDark-20_rinv-0.3_alpha-peak_yukawa-1_13TeV-madgraphMLM-pythia8_files.txt  0.01891
+#
+# QCD
+inputFilesLists/QCD_106X_v02/QCD_pt_170to300_files.txt    103500
+inputFilesLists/QCD_106X_v02/QCD_pt_300to470_files.txt    6762
+inputFilesLists/QCD_106X_v02/QCD_pt_470to600_files.txt    551.60
+inputFilesLists/QCD_106X_v02/QCD_pt_600to800_files.txt    156.4
+inputFilesLists/QCD_106X_v02/QCD_pt_800to1000_files.txt   26.24
+inputFilesLists/QCD_106X_v02/QCD_pt_1000to1400_files.txt  7.477
+inputFilesLists/QCD_106X_v02/QCD_pt_1400to1800_files.txt  0.6423
+inputFilesLists/QCD_106X_v02/QCD_pt_1800to2400_files.txt  0.08671
+inputFilesLists/QCD_106X_v02/QCD_pt_2400to3200_files.txt  0.005233
+inputFilesLists/QCD_106X_v02/QCD_pt_3200toInf_files.txt   0.0001321
+#
+# ttbar
+inputFilesLists/ttbar_106X_v02/ttbar_files.txt  759.1

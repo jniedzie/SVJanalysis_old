@@ -56,3 +56,25 @@ def pdg_id(particle):
 
 
     return pdg_id_dict[particle]
+
+
+def jet_name_to_jet_radius(jet_name):
+    """Return the jet radius corresponding to a jet name.
+
+    Args:
+        jet_name (str): e.g. AK8, FatJet, AK8Jet, ...
+
+    Returns:
+        float
+    """
+    
+    jet_name_to_jet_radius_dict = {
+        "ak4": 0.4,
+        "ak4jet": 0.4,
+        "jet": 0.4,
+        "ak8": 0.8,
+        "ak8jet": 0.8,
+        "fatjet": 0.8,
+    }
+
+    return jet_name_to_jet_radius_dict[jet_name.lower()]

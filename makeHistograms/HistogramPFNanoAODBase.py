@@ -30,7 +30,6 @@ class HistogramPFNanoAODBase(HistogramDefault):
         * self.gen_weights_info
         * self.cuts
         * self._accumulator
-        * self.file_type (will soon be obsolete when using 106X PFNanoAOD format only)
 
     initialize_ak_arrays returns the following objects:
         * var_arrays (dict): arrays for all variables
@@ -41,7 +40,7 @@ class HistogramPFNanoAODBase(HistogramDefault):
     """
 
 
-    def __init__(self, binning_info, file_type):
+    def __init__(self, binning_info):
         """Define the variables to histogram, their binning and their coffea histogram object.
 
         Args:
@@ -54,14 +53,12 @@ class HistogramPFNanoAODBase(HistogramDefault):
 			"ak[48]Jet_n"           :  [20   ,  0   , 20   ],
 		    }
 		}
-            file_type (str)
 
         Returns:
             None
         """
 
         self.binning_info = binning_info
-        self.file_type = file_type
 
         self.njet_max = 4
         self.jet_types = ["ak4", "ak8"]
@@ -262,17 +259,11 @@ class HistogramPFNanoAODBase(HistogramDefault):
             )
 
             # Making jet constituents 4-vectors
-            if self.file_type == "PFnano102X":
-                if jet_type == "ak8": prefix = "Fat"
-                else: prefix = ""
-            elif self.file_type == "PFnano106X":
-                prefix = ""
-            # the else case cannot happen, it has already been tackled
             jagged_var_arrays[jet_type+"JetPFCands4vector"] = vecutl.make_PtEtaPhiMLorentzVector(
-                cfutl.get_from_events(events, prefix+"JetPFCands_pt"),
-                cfutl.get_from_events(events, prefix+"JetPFCands_eta"),
-                cfutl.get_from_events(events, prefix+"JetPFCands_phi"),
-                cfutl.get_from_events(events, prefix+"JetPFCands_mass"),
+                cfutl.get_from_events(events, "PFCands_pt"),
+                cfutl.get_from_events(events, "PFCands_eta"),
+                cfutl.get_from_events(events, "PFCands_phi"),
+                cfutl.get_from_events(events, "PFCands_mass"),
             )
 
 
