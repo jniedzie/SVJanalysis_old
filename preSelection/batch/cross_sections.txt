@@ -1,4 +1,4 @@
-# Cross-sections for the samples in inputFilesLists/
+# Cross-sections in pb for the samples in inputFilesLists/
 # Syntax:
 # path/to/files/list/from/here xsec
 # Note: There can be several spaces in between path and xsec
