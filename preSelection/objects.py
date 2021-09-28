@@ -142,12 +142,6 @@ class SingleEventLevel():
         else:
             return super(SingleEventLevel, self).__getattr__(attr)
 
-#    def __getattr__(self, name):
-#        if name in self.variables:
-#            return getattr(self.event_level, name)
-#        else:
-#            return getattr(self, name)
- 
 
 
 class Met():
