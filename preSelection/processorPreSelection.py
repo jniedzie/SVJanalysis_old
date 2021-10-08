@@ -14,24 +14,24 @@ from triggers import selected_triggers
 def capitalize(word):
     return word[0].upper() + word[1:]
 
+
 def get_number_of_events(events):
     return ak.sum(events.genWeight)
 
 
-def apply_tchannel_cuts(events, accumulator):
-    """t channel pre-selection cuts.
+def apply_trigger_cuts(events, accumulator, trigger_list):
+    """Filter events using an or of all triggers.
 
     Args:
         events (awkward.highlevel.Array): the Events TTree opened with uproot
         accumulator (coffea.processor.accumulator.dict_accumulator)
 
     Returns:
-        None
+        awkward.highlevel.Array
     """
 
-    # Trigger requirements
     trigger_selection = None
-    for trigger in selected_triggers:
+    for trigger in trigger_list:
         trigger_branch = getattr(events.HLT, trigger)
         if trigger_selection is None:
             trigger_selection = trigger_branch
@@ -40,7 +40,20 @@ def apply_tchannel_cuts(events, accumulator):
     events = events[trigger_selection]
     accumulator["cutflow"]["Trigger"] += get_number_of_events(events)
 
-    # MET filters
+    return events
+
+
+def apply_met_filters_cuts(events, accumulator, met_filters):
+    """MET filters cuts.
+
+    Args:
+        events (awkward.highlevel.Array): the Events TTree opened with uproot
+        accumulator (coffea.processor.accumulator.dict_accumulator)
+
+    Returns:
+        awkward.highlevel.Array
+    """
+
     for met_filter in met_filters:
         events = events[getattr(events.Flag, met_filter)]
         accumulator["cutflow"][capitalize(met_filter)] = get_number_of_events(events)
@@ -187,7 +200,8 @@ class Preselection_tchannel(processor.ProcessorABC):
         accumulator["cutflow"]["NoCut"] = get_number_of_events(events)
 
         ## Event selection
-        events = apply_tchannel_cuts(events, accumulator)
+        events = apply_trigger_cuts(events, accumulator, selected_triggers)
+        events = apply_met_filters_cuts(events, accumulator, met_filters)
 
         # Good jets
         good_ak4_jets = obj.Jets(events, "AK4", self.input_file_type, cut="(jet.pt > 30 ) & (np.abs(jet.eta) < 2.4)")
